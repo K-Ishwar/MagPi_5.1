@@ -1,0 +1,87 @@
+PROPRIETARY SOFTWARE LICENSE AGREEMENT
+
+Copyright (c) 2025 Vinze Magnafield Controls. All Rights Reserved.
+
+MAG-Pi Magnetic Particle Inspection System
+
+IMPORTANT - READ CAREFULLY: This License Agreement ("Agreement") is a legal agreement between you 
+(either an individual or a single entity, referred to as "Licensee") and Vinze Magnafield Controls 
+("Licensor") for the software product identified above, which includes computer software and may 
+include associated media, printed materials, and "online" or electronic documentation ("Software").
+
+BY INSTALLING, COPYING, OR OTHERWISE USING THE SOFTWARE, YOU AGREE TO BE BOUND BY THE TERMS OF 
+THIS AGREEMENT. IF YOU DO NOT AGREE TO THE TERMS OF THIS AGREEMENT, DO NOT INSTALL OR USE THE 
+SOFTWARE.
+
+1. GRANT OF LICENSE
+Subject to the terms and conditions of this Agreement, Licensor grants Licensee a non-exclusive, 
+non-transferable, limited license to use the Software solely for Licensee's internal business purposes.
+
+2. RESTRICTIONS
+Licensee shall NOT:
+   a) Modify, adapt, translate, reverse engineer, decompile, disassemble, or create derivative 
+      works based on the Software
+   b) Copy the Software except for backup purposes
+   c) Rent, lease, loan, sublicense, or transfer the Software to any third party
+   d) Remove or alter any copyright, trademark, or other proprietary notices
+   e) Use the Software for any illegal purpose or in violation of applicable laws
+
+3. OWNERSHIP
+The Software is licensed, not sold. Licensor retains all right, title, and interest in and to the 
+Software, including all copyrights, patents, trade secrets, trademarks, and other intellectual 
+property rights. This Agreement does not grant Licensee any rights to patents, copyrights, trade 
+secrets, trademarks, or any other rights in respect to the Software.
+
+4. THIRD-PARTY COMPONENTS
+The Software includes third-party components that are subject to their own license terms:
+   - jSerialComm (Apache License 2.0 or LGPL v2.1)
+   - OpenCV (Apache License 2.0)
+   - iText7 (AGPL v3 or Commercial License)
+   - SLF4J (MIT License)
+   - Logback (EPL v1.0 and LGPL 2.1)
+
+Licensee is responsible for compliance with all third-party license terms.
+
+5. WARRANTY DISCLAIMER
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED, 
+INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR 
+PURPOSE, AND NON-INFRINGEMENT. LICENSOR DOES NOT WARRANT THAT THE SOFTWARE WILL MEET LICENSEE'S 
+REQUIREMENTS OR THAT THE OPERATION OF THE SOFTWARE WILL BE UNINTERRUPTED OR ERROR-FREE.
+
+6. LIMITATION OF LIABILITY
+IN NO EVENT SHALL LICENSOR BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, PUNITIVE, OR 
+CONSEQUENTIAL DAMAGES, OR ANY LOSS OF PROFITS, REVENUE, DATA, OR DATA USE, ARISING OUT OF OR 
+IN CONNECTION WITH THIS AGREEMENT OR THE USE OR PERFORMANCE OF THE SOFTWARE, EVEN IF LICENSOR 
+HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+7. SUPPORT AND MAINTENANCE
+Licensor is not obligated to provide support, maintenance, updates, or modifications under this 
+Agreement. Any support services shall be subject to a separate agreement.
+
+8. TERM AND TERMINATION
+This Agreement is effective until terminated. Licensee may terminate it at any time by destroying 
+all copies of the Software. This Agreement will also terminate immediately if Licensee fails to 
+comply with any term or condition of this Agreement. Upon termination, Licensee must destroy all 
+copies of the Software.
+
+9. EXPORT COMPLIANCE
+Licensee agrees to comply with all applicable export laws and regulations and shall not export 
+or re-export the Software in violation of such laws.
+
+10. GOVERNING LAW
+This Agreement shall be governed by and construed in accordance with the laws of [Jurisdiction], 
+without regard to its conflict of law provisions.
+
+11. ENTIRE AGREEMENT
+This Agreement constitutes the entire agreement between the parties concerning the subject matter 
+hereof and supersedes all prior or contemporaneous agreements, whether written or oral.
+
+12. CONTACT INFORMATION
+For questions regarding this license, please contact:
+
+Vinze Magnafield Controls
+Email: support@vinzemagnafield.com
+Website: www.vinzemagnafield.com
+
+BY USING THE SOFTWARE, YOU ACKNOWLEDGE THAT YOU HAVE READ THIS AGREEMENT, UNDERSTAND IT, AND 
+AGREE TO BE BOUND BY ITS TERMS AND CONDITIONS.

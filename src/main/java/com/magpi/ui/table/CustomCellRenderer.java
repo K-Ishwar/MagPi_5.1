@@ -38,8 +38,14 @@ public class CustomCellRenderer extends DefaultTableCellRenderer {
             return cell;
         }
 
-        // Only color numeric cells (current values) that are in odd columns (1, 3, 5, 7, 9)
-        if (column % 2 == 1 && column > 0 && column < table.getColumnCount() - 1) {
+        // Find the index of the "Status" column dynamically (fallback to last column)
+        int statusColumn = table.getColumnCount() - 1;
+        for (int c = 0; c < table.getColumnCount(); c++) {
+            if ("Status".equalsIgnoreCase(table.getColumnName(c))) { statusColumn = c; break; }
+        }
+
+        // Only color numeric cells (current values) that are in odd columns (1, 3, 5, 7, 9) and before Status
+        if (column % 2 == 1 && column > 0 && column < statusColumn) {
             if (value != null && !value.toString().trim().isEmpty()) {
                 try {
                     double current = Double.parseDouble(value.toString());
@@ -49,23 +55,13 @@ public class CustomCellRenderer extends DefaultTableCellRenderer {
                     } else {
                         cell.setBackground(Color.RED);
                         tableModel.setCellColor(row, column, Color.RED);
-
-                        // Auto-update status column when a red value is found
-                        int statusColumn = table.getColumnCount() - 1;
-                        tableModel.setCellColor(row, statusColumn, Color.ORANGE);
+                        // Do not touch the status column here; overall status is handled in TablePage workflow
                     }
                 } catch (NumberFormatException e) {
                     // Not a number, don't color
                 }
             }
         }
-        // Status column has special coloring handled by updateStatusColor method in TablePage
-        else if (column == table.getColumnCount() - 1) {
-            // Status column - color will be set by the updateStatusColor method
-            // If no color is set yet, just keep it white
-            cell.setBackground(Color.WHITE);
-        }
-
         // First column (part number) should be gray
         if (column == 0) {
             cell.setBackground(new Color(220, 220, 220)); // Light gray
@@ -73,4 +69,4 @@ public class CustomCellRenderer extends DefaultTableCellRenderer {
 
         return cell;
     }
-}
+} 

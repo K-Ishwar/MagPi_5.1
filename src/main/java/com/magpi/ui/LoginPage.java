@@ -18,7 +18,6 @@ import javax.imageio.ImageIO;
  */
 public class LoginPage extends JPanel {
     private JTextField companyNameField;
-    private JPasswordField passwordField;
     private JTextField machineIdField;
     private JTextField supervisorIdField;
     private JComboBox<String> operatorComboBox;
@@ -69,7 +68,6 @@ public class LoginPage extends JPanel {
     private void initializeComponents() {
         // Initialize form components
         companyNameField = new JTextField(15);
-        passwordField = new JPasswordField(15);
         machineIdField = new JTextField(15);
         supervisorIdField = new JTextField(15);
         headShotThresholdField = new JTextField("0.0", 8);
@@ -277,19 +275,9 @@ public class LoginPage extends JPanel {
         gbc.gridwidth = 1;
         loginPanel.add(companyNameField, gbc);
 
-        // Password
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        gbc.gridwidth = 1;
-        loginPanel.add(new JLabel("Password:"), gbc);
-
-        gbc.gridx = 1;
-        gbc.gridwidth = 1;
-        loginPanel.add(passwordField, gbc);
-
         // Machine ID
         gbc.gridx = 0;
-        gbc.gridy = 2;
+        gbc.gridy = 1;
         gbc.gridwidth = 1;
         loginPanel.add(new JLabel("Machine ID:"), gbc);
 
@@ -299,7 +287,7 @@ public class LoginPage extends JPanel {
 
         // Supervisor ID
         gbc.gridx = 0;
-        gbc.gridy = 3;
+        gbc.gridy = 2;
         gbc.gridwidth = 1;
         loginPanel.add(new JLabel("Supervisor ID:"), gbc);
 
@@ -309,7 +297,7 @@ public class LoginPage extends JPanel {
 
         // Operator section
         gbc.gridx = 0;
-        gbc.gridy = 4;
+        gbc.gridy = 3;
         gbc.gridwidth = 1;
         loginPanel.add(new JLabel("Operator Name:"), gbc);
 
@@ -319,7 +307,7 @@ public class LoginPage extends JPanel {
 
         // Add operator button
         gbc.gridx = 1;
-        gbc.gridy = 5;
+        gbc.gridy = 4;
         gbc.gridwidth = 1;
         gbc.gridwidth = 1;
         gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -331,7 +319,7 @@ public class LoginPage extends JPanel {
 
         // Part Description section
         gbc.gridx = 0;
-        gbc.gridy = 6;
+        gbc.gridy = 5;
         gbc.gridwidth = 1;
         loginPanel.add(new JLabel("Part Description:"), gbc);
 
@@ -341,7 +329,7 @@ public class LoginPage extends JPanel {
 
         // Add part button
         gbc.gridx = 1;
-        gbc.gridy = 7;
+        gbc.gridy = 6;
         gbc.gridwidth = 1;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 0.0;

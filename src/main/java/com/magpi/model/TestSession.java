@@ -10,6 +10,7 @@ import java.util.List;
  * Represents a testing session with session information and the collection of parts tested
  */
 public class TestSession {
+    private Long id; // DB id
     private String operatorName;
     private String machineId;
     private String supervisorId;
@@ -61,6 +62,9 @@ public class TestSession {
     }
     
     // Getters and setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
     public String getOperatorName() {
         return operatorName;
     }

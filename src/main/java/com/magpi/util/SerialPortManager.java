@@ -13,7 +13,7 @@ import java.util.function.Consumer;
 /**
  * Manages serial port connections for communicating with Arduino devices
  */
-public class SerialPortManager {
+public class  SerialPortManager {
     private SerialPort serialPort;
     private Thread readThread;
     private AtomicBoolean running = new AtomicBoolean(false);

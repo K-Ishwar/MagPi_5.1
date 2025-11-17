@@ -10,8 +10,6 @@ import com.magpi.video.VLCJVideoStream;
 import javax.swing.*;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.util.regex.Pattern;
 
 /**
@@ -19,14 +17,32 @@ import java.util.regex.Pattern;
  */
 public class HistoryPage extends JPanel {
     private TestSession session;
+
+    // Visible aggregated table: Part Test History
+    private JTable partHistoryTable;
+    private PersistentColorTableModel partHistoryTableModel;
+
+    // Hidden measurement tables reused for details dialog and full PDF export
     private JTable headshotHistoryTable;
     private JTable coilshotHistoryTable;
     private PersistentColorTableModel headshotHistoryTableModel;
     private PersistentColorTableModel coilshotHistoryTableModel;
-    private JLabel totalPartsLabel;
-    private JLabel acceptedPartsLabel;
-    private JLabel rejectedPartsLabel;
+
     private RecordedVideosPage recordedVideosPage;
+
+    // Per-part metadata aligned to model rows (index matches DB order / hidden tables)
+    private java.util.List<java.util.Map<String, Object>> parts = new java.util.ArrayList<>();
+
+    private java.util.List<String> operators = new java.util.ArrayList<>();
+    private java.util.List<String> supervisors = new java.util.ArrayList<>();
+    private java.util.List<String> dates = new java.util.ArrayList<>();
+    private java.util.List<String> companies = new java.util.ArrayList<>();
+    private java.util.List<String> machines = new java.util.ArrayList<>();
+    private java.util.List<String> partDescriptions = new java.util.ArrayList<>();
+    private java.util.List<String> startTimes = new java.util.ArrayList<>();
+    private java.util.List<String> endTimes = new java.util.ArrayList<>();
+    private java.util.List<Double> headThresholds = new java.util.ArrayList<>();
+    private java.util.List<Double> coilThresholds = new java.util.ArrayList<>();
 
     /**
      * Creates a new history page
@@ -41,28 +57,29 @@ public class HistoryPage extends JPanel {
 
 
     private void initializeComponents() {
-        // Define column names excluding the action column
-        String[] columnNames = {
+        // Visible history table: one row per part
+        String[] historyColumns = {
+                "Part No", "Headshot", "CoilShot", "Date", "Time", "Operator", "Details"
+        };
+        partHistoryTableModel = new PersistentColorTableModel(historyColumns, 0);
+        partHistoryTable = new JTable(partHistoryTableModel);
+
+        // Hidden detailed tables (same structure as live tables, plus Crack/Details)
+        String[] measurementColumns = {
                 "Part No", "Current 1", "T 1", "Current 2", "T 2",
                 "Current 3", "T 3", "Current 4", "T 4",
-                "Current 5", "T 5", "Status"
+                "Current 5", "T 5", "Status", "Crack", "Details"
         };
-
-        // Initialize table models
-        headshotHistoryTableModel = new PersistentColorTableModel(columnNames, 0);
-        coilshotHistoryTableModel = new PersistentColorTableModel(columnNames, 0);
-
-        // Initialize tables
+        headshotHistoryTableModel = new PersistentColorTableModel(measurementColumns, 0);
+        coilshotHistoryTableModel = new PersistentColorTableModel(measurementColumns, 0);
         headshotHistoryTable = new JTable(headshotHistoryTableModel);
         coilshotHistoryTable = new JTable(coilshotHistoryTableModel);
 
-        // Set renderers for the tables
+        // Set custom renderers / styling
         updateTableRenderers();
 
-        // Initialize labels
-        totalPartsLabel = new JLabel("Total Parts Tested: 0");
-        //acceptedPartsLabel = new JLabel("Accepted Parts: 0");
-        //rejectedPartsLabel = new JLabel("Rejected Parts: 0");
+        // Load all-time history from database
+        loadAllHistoryFromDb();
     }
 
     private void setupUI() {
@@ -81,65 +98,31 @@ public class HistoryPage extends JPanel {
         JLabel machineIdLabel = new JLabel("Machine ID: " + session.getMachineId());
         machineIdLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         machineIdLabel.setForeground(new Color(44, 62, 80));
-
-        // Style the counter labels
-        totalPartsLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        totalPartsLabel.setForeground(new Color(44, 62, 80));
-
-        acceptedPartsLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        acceptedPartsLabel.setForeground(new Color(39, 174, 96)); // Green for accepted
-
-        rejectedPartsLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        rejectedPartsLabel.setForeground(new Color(231, 76, 60)); // Red for rejected
-
         headerPanel.add(operatorLabel);
         headerPanel.add(machineIdLabel);
-        headerPanel.add(totalPartsLabel);
-        headerPanel.add(acceptedPartsLabel);
-        headerPanel.add(rejectedPartsLabel);
-
         add(headerPanel, BorderLayout.NORTH);
 
-        // Create tables panel with improved styling
-        JPanel tablesPanel = new JPanel(new GridLayout(1, 2, 20, 0));
-        tablesPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
-        tablesPanel.setBackground(new Color(245, 245, 245));
+        // Single Part Test History table
+        JPanel tablePanel = new JPanel(new BorderLayout(0, 10));
+        tablePanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+        tablePanel.setBackground(new Color(245, 245, 245));
 
-        // Headshot history panel
-        JPanel headshotPanel = new JPanel(new BorderLayout(0, 10));
-        headshotPanel.setOpaque(false);
+        JLabel titleLabel = new JLabel("Part Test History");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        titleLabel.setForeground(new Color(44, 62, 80));
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 5, 0));
 
-        JLabel headshotTitleLabel = new JLabel("Headshot History");
-        headshotTitleLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        headshotTitleLabel.setForeground(new Color(44, 62, 80));
-        headshotTitleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 5, 0));
+        JScrollPane historyScrollPane = new JScrollPane(partHistoryTable);
+        historyScrollPane.setBorder(BorderFactory.createEmptyBorder());
+        historyScrollPane.getViewport().setBackground(Color.WHITE);
 
-        JScrollPane headshotScrollPane = new JScrollPane(headshotHistoryTable);
-        headshotScrollPane.setBorder(BorderFactory.createEmptyBorder());
-        headshotScrollPane.getViewport().setBackground(Color.WHITE);
+        tablePanel.add(titleLabel, BorderLayout.NORTH);
+        tablePanel.add(historyScrollPane, BorderLayout.CENTER);
 
-        headshotPanel.add(headshotTitleLabel, BorderLayout.NORTH);
-        headshotPanel.add(headshotScrollPane, BorderLayout.CENTER);
-        tablesPanel.add(headshotPanel);
+        add(tablePanel, BorderLayout.CENTER);
 
-        // Coilshot history panel
-        JPanel coilshotPanel = new JPanel(new BorderLayout(0, 10));
-        coilshotPanel.setOpaque(false);
-
-        JLabel coilshotTitleLabel = new JLabel("Coilshot History");
-        coilshotTitleLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        coilshotTitleLabel.setForeground(new Color(44, 62, 80));
-        coilshotTitleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 5, 0));
-
-        JScrollPane coilshotScrollPane = new JScrollPane(coilshotHistoryTable);
-        coilshotScrollPane.setBorder(BorderFactory.createEmptyBorder());
-        coilshotScrollPane.getViewport().setBackground(Color.WHITE);
-
-        coilshotPanel.add(coilshotTitleLabel, BorderLayout.NORTH);
-        coilshotPanel.add(coilshotScrollPane, BorderLayout.CENTER);
-        tablesPanel.add(coilshotPanel);
-
-        add(tablesPanel, BorderLayout.CENTER);
+        // Details click handler for aggregated table
+        addDetailsClickListenerForPartTable();
 
         // Create controls panel with improved styling
         JPanel controlsPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
@@ -167,17 +150,21 @@ public class HistoryPage extends JPanel {
         filterComboBox.addActionListener(e -> filterResults((String) filterComboBox.getSelectedItem()));
 
         // Style action buttons
-        JButton exportButton = new JButton("Export to PDF");
+        JButton exportButton = new JButton("Export Detailed PDF");
         styleButton(exportButton, new Color(41, 128, 185), Color.WHITE);
         exportButton.addActionListener(e -> exportToPdf());
+
+        JButton exportSummaryButton = new JButton("Export Summary PDF");
+        styleButton(exportSummaryButton, new Color(52, 152, 219), Color.WHITE);
+        exportSummaryButton.addActionListener(e -> exportSummaryPdf());
 
         JButton viewRecordingsButton = new JButton("View Recordings");
         styleButton(viewRecordingsButton, new Color(46, 204, 113), Color.WHITE);
         viewRecordingsButton.addActionListener(e -> viewRecordings());
 
-        JButton endProcessButton = new JButton("End Process");
-        styleButton(endProcessButton, new Color(231, 76, 60), Color.WHITE);
-        endProcessButton.addActionListener(e -> restartApplication());
+        JButton backToTableButton = new JButton("Back to Live View");
+        styleButton(backToTableButton, new Color(156, 39, 176), Color.WHITE);
+        backToTableButton.addActionListener(e -> navigateToTablePage());
 
         // Add components to controls panel
         controlsPanel.add(searchLabel);
@@ -186,8 +173,9 @@ public class HistoryPage extends JPanel {
         controlsPanel.add(filterLabel);
         controlsPanel.add(filterComboBox);
         controlsPanel.add(exportButton);
+        controlsPanel.add(exportSummaryButton);
         controlsPanel.add(viewRecordingsButton);
-        controlsPanel.add(endProcessButton);
+        controlsPanel.add(backToTableButton);
 
         add(controlsPanel, BorderLayout.SOUTH);
     }
@@ -197,7 +185,7 @@ public class HistoryPage extends JPanel {
      * @param searchText The text to search for
      */
     private void performSearch(String searchText) {
-        // Create row filter and apply to headshot table
+        // Create row filter and apply to the aggregated part history table
         RowFilter<Object, Object> filter = null;
         if (searchText.length() > 0) {
             try {
@@ -209,17 +197,10 @@ public class HistoryPage extends JPanel {
             }
         }
 
-        // Apply filter to headshot table
-        TableRowSorter<PersistentColorTableModel> headshotSorter =
-                new TableRowSorter<>(headshotHistoryTableModel);
-        headshotSorter.setRowFilter(filter);
-        headshotHistoryTable.setRowSorter(headshotSorter);
-
-        // Apply filter to coilshot table
-        TableRowSorter<PersistentColorTableModel> coilshotSorter =
-                new TableRowSorter<>(coilshotHistoryTableModel);
-        coilshotSorter.setRowFilter(filter);
-        coilshotHistoryTable.setRowSorter(coilshotSorter);
+        TableRowSorter<PersistentColorTableModel> sorter =
+                new TableRowSorter<>(partHistoryTableModel);
+        sorter.setRowFilter(filter);
+        partHistoryTable.setRowSorter(sorter);
     }
 
     /**
@@ -230,42 +211,502 @@ public class HistoryPage extends JPanel {
         RowFilter<Object, Object> filter = null;
 
         if (!"All".equals(filterOption)) {
-            // Filter on the status column (last column)
-            final int statusColumnIndex = headshotHistoryTableModel.getColumnCount() - 1;
+            // Filter based on Headshot / CoilShot status text (PASS/FAIL)
+            final int headCol = 1; // Headshot
+            final int coilCol = 2; // CoilShot
+            final String wanted = filterOption.toUpperCase();
+
             filter = new RowFilter<Object, Object>() {
                 public boolean include(Entry entry) {
-                    // Use cell color instead of text for filtering
-                    Color cellColor = headshotHistoryTableModel.getCellColor(
-                            (int)entry.getIdentifier(), statusColumnIndex);
-
-                    if ("PASS".equals(filterOption)) {
-                        return cellColor != null && cellColor.equals(Color.GREEN);
-                    } else if ("FAIL".equals(filterOption)) {
-                        return cellColor != null && cellColor.equals(Color.ORANGE);
-                    }
-                    return true;
+                    String h = String.valueOf(entry.getValue(headCol));
+                    String c = String.valueOf(entry.getValue(coilCol));
+                    return h.toUpperCase().contains(wanted) || c.toUpperCase().contains(wanted);
                 }
             };
         }
 
-        // Apply filter to headshot table
-        TableRowSorter<PersistentColorTableModel> headshotSorter =
-                new TableRowSorter<>(headshotHistoryTableModel);
-        headshotSorter.setRowFilter(filter);
-        headshotHistoryTable.setRowSorter(headshotSorter);
-
-        // Apply filter to coilshot table
-        TableRowSorter<PersistentColorTableModel> coilshotSorter =
-                new TableRowSorter<>(coilshotHistoryTableModel);
-        coilshotSorter.setRowFilter(filter);
-        coilshotHistoryTable.setRowSorter(coilshotSorter);
+        TableRowSorter<PersistentColorTableModel> sorter =
+                new TableRowSorter<>(partHistoryTableModel);
+        sorter.setRowFilter(filter);
+        partHistoryTable.setRowSorter(sorter);
     }
 
     /**
-     * Exports the session data to PDF
+     * Exports the session data to PDF with filtering options
      */
     private void exportToPdf() {
-        PdfExporter.exportToPdf(session, headshotHistoryTable, coilshotHistoryTable, this);
+        showExportOptionsDialog();
+    }
+
+    /**
+     * Show export options dialog for user to select date range, time range, and operator
+     */
+    private void showExportOptionsDialog() {
+        JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), "Export Options", true);
+        dialog.setLayout(new BorderLayout(10, 10));
+        dialog.setSize(500, 400);
+        dialog.setLocationRelativeTo(this);
+
+        JPanel mainPanel = new JPanel();
+        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        // Option 1: Export today's data
+        JRadioButton todayOption = new JRadioButton("Export Today's Data", true);
+        todayOption.setFont(new Font("Segoe UI", Font.BOLD, 14));
+
+        // Option 2: Export with date/time range
+        JRadioButton customRangeOption = new JRadioButton("Export Custom Date/Time Range");
+        customRangeOption.setFont(new Font("Segoe UI", Font.BOLD, 14));
+
+        ButtonGroup optionGroup = new ButtonGroup();
+        optionGroup.add(todayOption);
+        optionGroup.add(customRangeOption);
+
+        mainPanel.add(todayOption);
+        mainPanel.add(Box.createVerticalStrut(10));
+        mainPanel.add(customRangeOption);
+        mainPanel.add(Box.createVerticalStrut(15));
+
+        // Date range panel
+        JPanel dateRangePanel = new JPanel(new GridLayout(4, 2, 10, 10));
+        dateRangePanel.setBorder(BorderFactory.createTitledBorder("Date/Time Range (Optional)"));
+
+        JLabel startDateLabel = new JLabel("Start Date (YYYY-MM-DD):");
+        JTextField startDateField = new JTextField(java.time.LocalDate.now().toString());
+
+        JLabel endDateLabel = new JLabel("End Date (YYYY-MM-DD):");
+        JTextField endDateField = new JTextField(java.time.LocalDate.now().toString());
+
+        JLabel startTimeLabel = new JLabel("Start Time (HH:MM:SS, optional):");
+        JTextField startTimeField = new JTextField("");
+
+        JLabel endTimeLabel = new JLabel("End Time (HH:MM:SS, optional):");
+        JTextField endTimeField = new JTextField("");
+
+        dateRangePanel.add(startDateLabel);
+        dateRangePanel.add(startDateField);
+        dateRangePanel.add(endDateLabel);
+        dateRangePanel.add(endDateField);
+        dateRangePanel.add(startTimeLabel);
+        dateRangePanel.add(startTimeField);
+        dateRangePanel.add(endTimeLabel);
+        dateRangePanel.add(endTimeField);
+
+        // Initially disable date range fields
+        startDateField.setEnabled(false);
+        endDateField.setEnabled(false);
+        startTimeField.setEnabled(false);
+        endTimeField.setEnabled(false);
+
+        // Enable/disable date fields based on selection
+        todayOption.addActionListener(e -> {
+            startDateField.setEnabled(false);
+            endDateField.setEnabled(false);
+            startTimeField.setEnabled(false);
+            endTimeField.setEnabled(false);
+        });
+
+        customRangeOption.addActionListener(e -> {
+            startDateField.setEnabled(true);
+            endDateField.setEnabled(true);
+            startTimeField.setEnabled(true);
+            endTimeField.setEnabled(true);
+        });
+
+        mainPanel.add(dateRangePanel);
+        mainPanel.add(Box.createVerticalStrut(15));
+
+        // Operator filter panel
+        JPanel operatorPanel = new JPanel(new GridLayout(1, 2, 10, 10));
+        operatorPanel.setBorder(BorderFactory.createTitledBorder("Operator Filter (Optional)"));
+
+        JLabel operatorLabel = new JLabel("Operator Name:");
+        JTextField operatorField = new JTextField("");
+
+        operatorPanel.add(operatorLabel);
+        operatorPanel.add(operatorField);
+
+        mainPanel.add(operatorPanel);
+
+        dialog.add(mainPanel, BorderLayout.CENTER);
+
+        // Buttons panel
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton exportBtn = new JButton("Export");
+        styleButton(exportBtn, new Color(41, 128, 185), Color.WHITE);
+        exportBtn.addActionListener(e -> {
+            performFilteredExport(
+                todayOption.isSelected(),
+                startDateField.getText().trim(),
+                endDateField.getText().trim(),
+                startTimeField.getText().trim(),
+                endTimeField.getText().trim(),
+                operatorField.getText().trim()
+            );
+            dialog.dispose();
+        });
+
+        JButton cancelBtn = new JButton("Cancel");
+        styleButton(cancelBtn, new Color(150, 150, 150), Color.WHITE);
+        cancelBtn.addActionListener(e -> dialog.dispose());
+
+        buttonPanel.add(exportBtn);
+        buttonPanel.add(cancelBtn);
+
+        dialog.add(buttonPanel, BorderLayout.SOUTH);
+        dialog.setVisible(true);
+    }
+
+    /**
+     * Perform filtered PDF export based on user's selections
+     */
+    private void performFilteredExport(boolean isTodayOnly, String startDate, String endDate,
+                                       String startTime, String endTime, String operatorFilter) {
+        try {
+            // Build column names array from existing model
+            int colCount = headshotHistoryTableModel.getColumnCount();
+            String[] columnNames = new String[colCount];
+            for (int i = 0; i < colCount; i++) {
+                columnNames[i] = headshotHistoryTableModel.getColumnName(i);
+            }
+
+            // Build filtered hidden tables
+            PersistentColorTableModel filteredHeadModel = new PersistentColorTableModel(columnNames, 0);
+            PersistentColorTableModel filteredCoilModel = new PersistentColorTableModel(columnNames, 0);
+
+            String today = java.time.LocalDate.now().toString();
+
+            for (int i = 0; i < headshotHistoryTableModel.getRowCount(); i++) {
+                // Get date/time/operator for this row
+                String rowDate = (i < dates.size() && dates.get(i) != null) ? dates.get(i) : "";
+                String rowOperator = (i < operators.size() && operators.get(i) != null) ? operators.get(i) : "";
+
+                // Parse date and time from created_at (format: "YYYY-MM-DD HH:MM:SS")
+                String rowDateOnly = rowDate;
+                String rowTimeOnly = "";
+                int spaceIdx = rowDate.indexOf(' ');
+                if (spaceIdx >= 0) {
+                    rowDateOnly = rowDate.substring(0, spaceIdx);
+                    rowTimeOnly = rowDate.substring(spaceIdx + 1);
+                }
+
+                boolean include = true;
+
+                // Apply date filter
+                if (isTodayOnly) {
+                    if (!rowDateOnly.equals(today)) {
+                        include = false;
+                    }
+                } else {
+                    // Custom date range
+                    if (!startDate.isEmpty() && rowDateOnly.compareTo(startDate) < 0) {
+                        include = false;
+                    }
+                    if (!endDate.isEmpty() && rowDateOnly.compareTo(endDate) > 0) {
+                        include = false;
+                    }
+
+                    // Apply time filter if both date and time provided
+                    if (include && !startTime.isEmpty() && rowDateOnly.equals(startDate)) {
+                        if (rowTimeOnly.compareTo(startTime) < 0) {
+                            include = false;
+                        }
+                    }
+                    if (include && !endTime.isEmpty() && rowDateOnly.equals(endDate)) {
+                        if (rowTimeOnly.compareTo(endTime) > 0) {
+                            include = false;
+                        }
+                    }
+                }
+
+                // Apply operator filter
+                if (include && !operatorFilter.isEmpty()) {
+                    if (!rowOperator.equalsIgnoreCase(operatorFilter)) {
+                        include = false;
+                    }
+                }
+
+                // If row passes all filters, copy it to filtered models
+                if (include) {
+                    // Copy headshot row
+                    Object[] headRow = new Object[headshotHistoryTableModel.getColumnCount()];
+                    for (int col = 0; col < headRow.length; col++) {
+                        headRow[col] = headshotHistoryTableModel.getValueAt(i, col);
+                    }
+                    filteredHeadModel.addRow(headRow);
+                    // Copy colors
+                    for (int col = 0; col < headRow.length; col++) {
+                        Color c = headshotHistoryTableModel.getCellColor(i, col);
+                        if (c != null) {
+                            filteredHeadModel.setCellColor(filteredHeadModel.getRowCount() - 1, col, c);
+                        }
+                    }
+
+                    // Copy coilshot row
+                    Object[] coilRow = new Object[coilshotHistoryTableModel.getColumnCount()];
+                    for (int col = 0; col < coilRow.length; col++) {
+                        coilRow[col] = coilshotHistoryTableModel.getValueAt(i, col);
+                    }
+                    filteredCoilModel.addRow(coilRow);
+                    // Copy colors
+                    for (int col = 0; col < coilRow.length; col++) {
+                        Color c = coilshotHistoryTableModel.getCellColor(i, col);
+                        if (c != null) {
+                            filteredCoilModel.setCellColor(filteredCoilModel.getRowCount() - 1, col, c);
+                        }
+                    }
+                }
+            }
+
+            // Create temporary tables for export
+            JTable filteredHeadTable = new JTable(filteredHeadModel);
+            JTable filteredCoilTable = new JTable(filteredCoilModel);
+
+            // Export filtered data
+            if (filteredHeadModel.getRowCount() == 0) {
+                JOptionPane.showMessageDialog(this,
+                    "No data matches the selected filters.",
+                    "No Data",
+                    JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                PdfExporter.exportToPdf(session, filteredHeadTable, filteredCoilTable, this);
+            }
+
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this,
+                "Error during export: " + ex.getMessage(),
+                "Export Error",
+                JOptionPane.ERROR_MESSAGE);
+            ex.printStackTrace();
+        }
+    }
+
+    /**
+     * Export Part Test History summary table with filtering options
+     */
+    private void exportSummaryPdf() {
+        showSummaryExportOptionsDialog();
+    }
+
+    /**
+     * Show export options dialog for summary table export
+     */
+    private void showSummaryExportOptionsDialog() {
+        JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), "Export Summary Options", true);
+        dialog.setLayout(new BorderLayout(10, 10));
+        dialog.setSize(500, 400);
+        dialog.setLocationRelativeTo(this);
+
+        JPanel mainPanel = new JPanel();
+        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        // Option 1: Export today's data
+        JRadioButton todayOption = new JRadioButton("Export Today's Data", true);
+        todayOption.setFont(new Font("Segoe UI", Font.BOLD, 14));
+
+        // Option 2: Export with date/time range
+        JRadioButton customRangeOption = new JRadioButton("Export Custom Date/Time Range");
+        customRangeOption.setFont(new Font("Segoe UI", Font.BOLD, 14));
+
+        ButtonGroup optionGroup = new ButtonGroup();
+        optionGroup.add(todayOption);
+        optionGroup.add(customRangeOption);
+
+        mainPanel.add(todayOption);
+        mainPanel.add(Box.createVerticalStrut(10));
+        mainPanel.add(customRangeOption);
+        mainPanel.add(Box.createVerticalStrut(15));
+
+        // Date range panel
+        JPanel dateRangePanel = new JPanel(new GridLayout(4, 2, 10, 10));
+        dateRangePanel.setBorder(BorderFactory.createTitledBorder("Date/Time Range (Optional)"));
+
+        JLabel startDateLabel = new JLabel("Start Date (YYYY-MM-DD):");
+        JTextField startDateField = new JTextField(java.time.LocalDate.now().toString());
+
+        JLabel endDateLabel = new JLabel("End Date (YYYY-MM-DD):");
+        JTextField endDateField = new JTextField(java.time.LocalDate.now().toString());
+
+        JLabel startTimeLabel = new JLabel("Start Time (HH:MM:SS, optional):");
+        JTextField startTimeField = new JTextField("");
+
+        JLabel endTimeLabel = new JLabel("End Time (HH:MM:SS, optional):");
+        JTextField endTimeField = new JTextField("");
+
+        dateRangePanel.add(startDateLabel);
+        dateRangePanel.add(startDateField);
+        dateRangePanel.add(endDateLabel);
+        dateRangePanel.add(endDateField);
+        dateRangePanel.add(startTimeLabel);
+        dateRangePanel.add(startTimeField);
+        dateRangePanel.add(endTimeLabel);
+        dateRangePanel.add(endTimeField);
+
+        // Initially disable date range fields
+        startDateField.setEnabled(false);
+        endDateField.setEnabled(false);
+        startTimeField.setEnabled(false);
+        endTimeField.setEnabled(false);
+
+        // Enable/disable date fields based on selection
+        todayOption.addActionListener(e -> {
+            startDateField.setEnabled(false);
+            endDateField.setEnabled(false);
+            startTimeField.setEnabled(false);
+            endTimeField.setEnabled(false);
+        });
+
+        customRangeOption.addActionListener(e -> {
+            startDateField.setEnabled(true);
+            endDateField.setEnabled(true);
+            startTimeField.setEnabled(true);
+            endTimeField.setEnabled(true);
+        });
+
+        mainPanel.add(dateRangePanel);
+        mainPanel.add(Box.createVerticalStrut(15));
+
+        // Operator filter panel
+        JPanel operatorPanel = new JPanel(new GridLayout(1, 2, 10, 10));
+        operatorPanel.setBorder(BorderFactory.createTitledBorder("Operator Filter (Optional)"));
+
+        JLabel operatorLabel = new JLabel("Operator Name:");
+        JTextField operatorField = new JTextField("");
+
+        operatorPanel.add(operatorLabel);
+        operatorPanel.add(operatorField);
+
+        mainPanel.add(operatorPanel);
+
+        dialog.add(mainPanel, BorderLayout.CENTER);
+
+        // Buttons panel
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton exportBtn = new JButton("Export");
+        styleButton(exportBtn, new Color(41, 128, 185), Color.WHITE);
+        exportBtn.addActionListener(e -> {
+            performSummaryFilteredExport(
+                todayOption.isSelected(),
+                startDateField.getText().trim(),
+                endDateField.getText().trim(),
+                startTimeField.getText().trim(),
+                endTimeField.getText().trim(),
+                operatorField.getText().trim()
+            );
+            dialog.dispose();
+        });
+
+        JButton cancelBtn = new JButton("Cancel");
+        styleButton(cancelBtn, new Color(150, 150, 150), Color.WHITE);
+        cancelBtn.addActionListener(e -> dialog.dispose());
+
+        buttonPanel.add(exportBtn);
+        buttonPanel.add(cancelBtn);
+
+        dialog.add(buttonPanel, BorderLayout.SOUTH);
+        dialog.setVisible(true);
+    }
+
+    /**
+     * Perform filtered summary PDF export based on user's selections
+     */
+    private void performSummaryFilteredExport(boolean isTodayOnly, String startDate, String endDate,
+                                              String startTime, String endTime, String operatorFilter) {
+        try {
+            // Build filtered Part Test History table
+            String[] summaryColumns = {"Part No", "Headshot", "CoilShot", "Date", "Time", "Operator"};
+            PersistentColorTableModel filteredSummaryModel = new PersistentColorTableModel(summaryColumns, 0);
+
+            String today = java.time.LocalDate.now().toString();
+
+            for (int i = 0; i < partHistoryTableModel.getRowCount(); i++) {
+                // Get date/time/operator from visible table
+                String rowDate = String.valueOf(partHistoryTableModel.getValueAt(i, 3)); // Date column
+                String rowTime = String.valueOf(partHistoryTableModel.getValueAt(i, 4)); // Time column
+                String rowOperator = String.valueOf(partHistoryTableModel.getValueAt(i, 5)); // Operator column
+
+                String rowDateTimeStr = rowDate + " " + rowTime;
+
+                boolean include = true;
+
+                // Apply date filter
+                if (isTodayOnly) {
+                    if (!rowDate.equals(today)) {
+                        include = false;
+                    }
+                } else {
+                    // Custom date range
+                    if (!startDate.isEmpty() && rowDate.compareTo(startDate) < 0) {
+                        include = false;
+                    }
+                    if (!endDate.isEmpty() && rowDate.compareTo(endDate) > 0) {
+                        include = false;
+                    }
+
+                    // Apply time filter if both date and time provided
+                    if (include && !startTime.isEmpty() && rowDate.equals(startDate)) {
+                        if (rowTime.compareTo(startTime) < 0) {
+                            include = false;
+                        }
+                    }
+                    if (include && !endTime.isEmpty() && rowDate.equals(endDate)) {
+                        if (rowTime.compareTo(endTime) > 0) {
+                            include = false;
+                        }
+                    }
+                }
+
+                // Apply operator filter
+                if (include && !operatorFilter.isEmpty()) {
+                    if (!rowOperator.equalsIgnoreCase(operatorFilter)) {
+                        include = false;
+                    }
+                }
+
+                // If row passes all filters, copy it (exclude Details column)
+                if (include) {
+                    Object[] row = new Object[summaryColumns.length];
+                    row[0] = partHistoryTableModel.getValueAt(i, 0); // Part No
+                    row[1] = partHistoryTableModel.getValueAt(i, 1); // Headshot
+                    row[2] = partHistoryTableModel.getValueAt(i, 2); // CoilShot
+                    row[3] = partHistoryTableModel.getValueAt(i, 3); // Date
+                    row[4] = partHistoryTableModel.getValueAt(i, 4); // Time
+                    row[5] = partHistoryTableModel.getValueAt(i, 5); // Operator
+
+                    filteredSummaryModel.addRow(row);
+
+                    // Copy colors for Headshot and CoilShot
+                    Color headColor = partHistoryTableModel.getCellColor(i, 1);
+                    if (headColor != null) {
+                        filteredSummaryModel.setCellColor(filteredSummaryModel.getRowCount() - 1, 1, headColor);
+                    }
+                    Color coilColor = partHistoryTableModel.getCellColor(i, 2);
+                    if (coilColor != null) {
+                        filteredSummaryModel.setCellColor(filteredSummaryModel.getRowCount() - 1, 2, coilColor);
+                    }
+                }
+            }
+
+            // Export filtered summary data
+            if (filteredSummaryModel.getRowCount() == 0) {
+                JOptionPane.showMessageDialog(this,
+                    "No data matches the selected filters.",
+                    "No Data",
+                    JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JTable filteredSummaryTable = new JTable(filteredSummaryModel);
+                PdfExporter.exportSummaryToPdf(session, filteredSummaryTable, this);
+            }
+
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this,
+                "Error during export: " + ex.getMessage(),
+                "Export Error",
+                JOptionPane.ERROR_MESSAGE);
+            ex.printStackTrace();
+        }
     }
 
     private void viewRecordings() {
@@ -280,6 +721,22 @@ public class HistoryPage extends JPanel {
             recordedVideosPage.setVisible(true);
         } else {
             recordedVideosPage.toFront();
+        }
+    }
+
+    private void navigateToTablePage() {
+        // Find the parent tabbed pane and switch to the table page
+        Container parent = getParent();
+        while (parent != null && !(parent instanceof JTabbedPane)) {
+            parent = parent.getParent();
+        }
+        
+        if (parent instanceof JTabbedPane) {
+            JTabbedPane tabbedPane = (JTabbedPane) parent;
+            // Table page is at index 1 (0=Login, 1=Table, 2=History)
+            if (tabbedPane.getTabCount() > 1) {
+                tabbedPane.setSelectedIndex(1);
+            }
         }
     }
 
@@ -318,45 +775,105 @@ public class HistoryPage extends JPanel {
         int totalParts = session.getTotalPartsCount();
         int acceptedParts = session.getAcceptedPartsCount();
         int rejectedParts = session.getRejectedPartsCount();
-
-        totalPartsLabel.setText("Total Parts Tested: " + totalParts);
-        acceptedPartsLabel.setText("Accepted Parts: " + acceptedParts);
-        rejectedPartsLabel.setText("Rejected Parts: " + rejectedParts);
+//
+//        totalPartsLabel.setText("Total Parts Tested: " + totalParts);
+//        acceptedPartsLabel.setText("Accepted Parts: " + acceptedParts);
+//        rejectedPartsLabel.setText("Rejected Parts: " + rejectedParts);
     }
 
     private void updateTableRenderers() {
+        // Hidden detailed tables use the same cell renderer as live tables
         headshotHistoryTable.setDefaultRenderer(Object.class,
                 new CustomCellRenderer(session.getHeadShotThreshold(), headshotHistoryTableModel));
         coilshotHistoryTable.setDefaultRenderer(Object.class,
                 new CustomCellRenderer(session.getCoilShotThreshold(), coilshotHistoryTableModel));
 
         // Improve table appearance
-        styleTable(headshotHistoryTable);
-        styleTable(coilshotHistoryTable);
+        styleMeasurementTable(headshotHistoryTable);
+        styleMeasurementTable(coilshotHistoryTable);
+
+        // Style the visible aggregated table
+        stylePartHistoryTable(partHistoryTable);
     }
 
     /**
      * Applies modern styling to the given table
      */
-    private void styleTable(JTable table) {
+    private void styleMeasurementTable(JTable table) {
         // Set row height and spacing
         table.setRowHeight(30);
-        table.setIntercellSpacing(new Dimension(10, 5));
+        table.setIntercellSpacing(new Dimension(5, 5));
         table.setShowGrid(true);
-        table.setGridColor(new Color(230, 230, 230));
+        table.setGridColor(new Color(120, 120, 120)); // Darker grid lines
+        table.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(100, 100, 100), 2),
+                BorderFactory.createEmptyBorder(1, 1, 1, 1)
+        ));
 
         // Style the header
-        table.getTableHeader().setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        table.getTableHeader().setBackground(new Color(0, 0, 0)); // Blue header
-        table.getTableHeader().setForeground(Color.BLACK);
+        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+        table.getTableHeader().setBackground(new Color(230, 230, 230));
+        table.getTableHeader().setForeground(new Color(44, 62, 80));
+        table.getTableHeader().setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(100, 100, 100), 2),
+                BorderFactory.createEmptyBorder(5, 5, 5, 5)
+        ));
+
+        // Set column widths
+        table.getColumnModel().getColumn(0).setPreferredWidth(80); // Part No
+        for (int i = 1; i < table.getColumnCount() - 3; i += 2) {
+            table.getColumnModel().getColumn(i).setPreferredWidth(100); // Current columns
+            table.getColumnModel().getColumn(i + 1).setPreferredWidth(80); // Time columns
+        }
+        table.getColumnModel().getColumn(getStatusColumnIndex((PersistentColorTableModel) table.getModel())).setPreferredWidth(90); // Status
+        table.getColumnModel().getColumn(getCrackColumnIndex((PersistentColorTableModel) table.getModel())).setPreferredWidth(80); // Crack
+        table.getColumnModel().getColumn(table.getColumnCount() - 1).setPreferredWidth(90); // Details
 
         // Prevent column resizing and reordering
         table.getTableHeader().setResizingAllowed(false);
         table.getTableHeader().setReorderingAllowed(false);
+    }
 
-        // Set selection colors
-        table.setSelectionBackground(new Color(25, 118, 210, 100)); // Semi-transparent blue
-        table.setSelectionForeground(Color.BLACK);
+    private void stylePartHistoryTable(JTable table) {
+        table.setRowHeight(28);
+        table.setIntercellSpacing(new Dimension(5, 5));
+        table.setShowGrid(true);
+        table.setGridColor(new Color(200, 200, 200));
+        table.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(120, 120, 120), 1),
+                BorderFactory.createEmptyBorder(1, 1, 1, 1)
+        ));
+
+        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+        table.getTableHeader().setBackground(new Color(230, 230, 230));
+        table.getTableHeader().setForeground(new Color(44, 62, 80));
+
+        // Column widths: Part, Headshot, CoilShot, Date, Time, Operator, Details
+        if (table.getColumnModel().getColumnCount() >= 7) {
+            table.getColumnModel().getColumn(0).setPreferredWidth(80);
+            table.getColumnModel().getColumn(1).setPreferredWidth(80);
+            table.getColumnModel().getColumn(2).setPreferredWidth(80);
+            table.getColumnModel().getColumn(3).setPreferredWidth(120);
+        }
+
+        table.getTableHeader().setResizingAllowed(false);
+        table.getTableHeader().setReorderingAllowed(false);
+
+        // Use CustomCellRenderer so PASS/FAIL colors saved in the model are shown
+        table.setDefaultRenderer(Object.class,
+                new CustomCellRenderer(0.0, partHistoryTableModel));
+
+        // Render the Details column to look like a button
+        int detailsColIndex = table.getColumnCount() - 1;
+        if (detailsColIndex >= 0) {
+            table.getColumnModel().getColumn(detailsColIndex)
+                    .setCellRenderer((tbl, value, isSelected, hasFocus, row, column) -> {
+                        JButton btn = new JButton(value == null ? "Details" : value.toString());
+                        // Reuse existing button styling
+                        styleButton(btn, new Color(41, 128, 185), Color.WHITE);
+                        return btn;
+                    });
+        }
     }
 
     /**
@@ -385,5 +902,278 @@ public class HistoryPage extends JPanel {
      */
     public PersistentColorTableModel getCoilshotHistoryTableModel() {
         return coilshotHistoryTableModel;
+    }
+
+    /**
+     * Add metadata for a part (called when transferring from TablePage)
+     */
+    public void addPartMetadata(String operator, String supervisor, String createdAt,
+                                String company, String machine, String partDesc,
+                                double headThreshold, double coilThreshold,
+                                String startTime, String endTime) {
+        operators.add(operator);
+        supervisors.add(supervisor);
+        dates.add(createdAt);
+        companies.add(company);
+        machines.add(machine);
+        partDescriptions.add(partDesc);
+        headThresholds.add(headThreshold);
+        coilThresholds.add(coilThreshold);
+        startTimes.add(startTime);
+        endTimes.add(endTime);
+    }
+
+    private int getStatusColumnIndex(PersistentColorTableModel model) {
+        return model.getColumnCount() - 3;
+    }
+
+    private int getCrackColumnIndex(PersistentColorTableModel model) {
+        return model.getColumnCount() - 2;
+    }
+
+    private void addDetailsClickListenerForPartTable() {
+        partHistoryTable.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                int col = partHistoryTable.columnAtPoint(e.getPoint());
+                int row = partHistoryTable.rowAtPoint(e.getPoint());
+                if (col == partHistoryTable.getColumnCount() - 1 && row >= 0) {
+                    int modelRow = partHistoryTable.convertRowIndexToModel(row);
+                    if (modelRow < 0 || modelRow >= headshotHistoryTableModel.getRowCount()) return;
+
+                    Object partLabel = partHistoryTableModel.getValueAt(modelRow, 0);
+
+                    // Build meta map from per-part lists
+                    java.util.Map<String,String> meta = new java.util.LinkedHashMap<>();
+                    meta.put("Company Name", modelRow < companies.size() ? companies.get(modelRow) : "");
+                    meta.put("Machine ID", modelRow < machines.size() ? machines.get(modelRow) : "");
+                    meta.put("Part Description", modelRow < partDescriptions.size() ? partDescriptions.get(modelRow) : "");
+                    meta.put("Operator", modelRow < operators.size() ? operators.get(modelRow) : "");
+                    meta.put("Supervisor", modelRow < supervisors.size() ? supervisors.get(modelRow) : "");
+                    meta.put("Start Time", modelRow < startTimes.size() ? startTimes.get(modelRow) : "");
+                    meta.put("End Time", modelRow < endTimes.size() ? endTimes.get(modelRow) : "");
+                    meta.put("Headshot Threshold", modelRow < headThresholds.size() ? String.valueOf(headThresholds.get(modelRow)) : "");
+                    meta.put("Coilshot Threshold", modelRow < coilThresholds.size() ? String.valueOf(coilThresholds.get(modelRow)) : "");
+
+                    // Overall status / crack from hidden headshot table (if present)
+                    String status = "";
+                    String crack = "";
+                    try {
+                        int statusIdx = getStatusColumnIndex(headshotHistoryTableModel);
+                        status = String.valueOf(headshotHistoryTableModel.getValueAt(modelRow, statusIdx));
+                        int crackIdx = getCrackColumnIndex(headshotHistoryTableModel);
+                        if (crackIdx >= 0) {
+                            crack = String.valueOf(headshotHistoryTableModel.getValueAt(modelRow, crackIdx));
+                        }
+                    } catch (Exception ignored) {}
+
+                    meta.put("Status", status == null ? "" : status);
+                    meta.put("Crack Status", crack == null ? "" : crack);
+
+                    java.awt.Window owner = javax.swing.SwingUtilities.getWindowAncestor(HistoryPage.this);
+                    com.magpi.ui.PartDetailsDialog.show(owner,
+                            headshotHistoryTable,
+                            coilshotHistoryTable,
+                            modelRow,
+                            modelRow,
+                            meta,
+                            partLabel == null ? "" : partLabel.toString());
+                }
+            }
+        });
+    }
+
+    /**
+     * Rebuild the visible Part Test History table from the hidden headshot/coilshot history tables.
+     * This should be called after the hidden tables are populated (from DB or from TablePage transfer).
+     */
+    public void rebuildPartHistoryTable() {
+        partHistoryTableModel.setRowCount(0);
+
+        int rowCount = Math.min(headshotHistoryTableModel.getRowCount(), coilshotHistoryTableModel.getRowCount());
+        int headStatusCol = getStatusColumnIndex(headshotHistoryTableModel);
+        int coilStatusCol = getStatusColumnIndex(coilshotHistoryTableModel);
+
+        // Track how many times each base part number has appeared to build retest suffixes (for DB-loaded data)
+        java.util.Map<Integer, Integer> partCounts = new java.util.HashMap<>();
+
+        for (int i = 0; i < rowCount; i++) {
+            // Part number from hidden table - use directly if PartIdCell, reconstruct if Integer
+            Object partObj = headshotHistoryTableModel.getValueAt(i, 0);
+            Object displayPartNo;
+            
+            if (partObj instanceof com.magpi.ui.util.PartIdCell) {
+                // From Table page transfer - use as-is (already has correct display)
+                displayPartNo = partObj;
+            } else if (partObj instanceof Integer) {
+                // From DB load - reconstruct retest suffix
+                int basePartNo = (Integer) partObj;
+                int count = partCounts.getOrDefault(basePartNo, 0);
+                displayPartNo = (count == 0) ? String.valueOf(basePartNo) : basePartNo + "-" + count;
+                partCounts.put(basePartNo, count + 1);
+            } else {
+                // Fallback for other types
+                displayPartNo = (partObj == null) ? "" : partObj.toString();
+            }
+
+            // Status text and color from the Status columns of each hidden table
+            Object headTextObj = headshotHistoryTableModel.getValueAt(i, headStatusCol);
+            Object coilTextObj = coilshotHistoryTableModel.getValueAt(i, coilStatusCol);
+            String headStatus = (headTextObj == null) ? "" : formatStatusText(headTextObj.toString());
+            String coilStatus = (coilTextObj == null) ? "" : formatStatusText(coilTextObj.toString());
+
+            java.awt.Color headColor = headshotHistoryTableModel.getCellColor(i, headStatusCol);
+            java.awt.Color coilColor = coilshotHistoryTableModel.getCellColor(i, coilStatusCol);
+
+            // Date / Time from metadata
+            String createdAt = (i < dates.size() && dates.get(i) != null) ? dates.get(i) : "";
+            String date = createdAt;
+            String time = "";
+            int idxT = createdAt.indexOf(' ');
+            if (idxT >= 0) {
+                date = createdAt.substring(0, idxT);
+                time = createdAt.substring(idxT + 1);
+            }
+
+            String operator = (i < operators.size() && operators.get(i) != null) ? operators.get(i) : "";
+
+            Object[] row = new Object[partHistoryTableModel.getColumnCount()];
+            row[0] = displayPartNo;  // Part No (PartIdCell or String with retest suffix)
+            row[1] = headStatus;     // Headshot status text (Pass/Error/retest)
+            row[2] = coilStatus;     // CoilShot status text (Pass/Error/retest)
+            row[3] = date;
+            row[4] = time;
+            row[5] = operator;
+            row[6] = "Details";
+
+            partHistoryTableModel.addRow(row);
+
+            // Set colors to match the Status columns
+            if (headColor != null) {
+                partHistoryTableModel.setCellColor(i, 1, headColor);
+            }
+            if (coilColor != null) {
+                partHistoryTableModel.setCellColor(i, 2, coilColor);
+            }
+        }
+    }
+
+    /**
+     * Format status text to match Table page style (Pass/Error/retest instead of PASS/ERROR)
+     */
+    private String formatStatusText(String status) {
+        if (status == null || status.isEmpty()) return "";
+        
+        String upper = status.toUpperCase();
+        if ("PASS".equals(upper)) return "Pass";
+        if ("ERROR".equals(upper)) return "Error";
+        if ("RETEST".equals(upper)) return "retest";
+        
+        // Return as-is for other values
+        return status;
+    }
+
+    private void loadAllHistoryFromDb() {
+        // Clear existing rows
+        headshotHistoryTableModel.setRowCount(0);
+        coilshotHistoryTableModel.setRowCount(0);
+        partHistoryTableModel.setRowCount(0);
+
+        operators.clear(); supervisors.clear(); dates.clear();
+        companies.clear(); machines.clear(); partDescriptions.clear();
+        startTimes.clear(); endTimes.clear(); headThresholds.clear(); coilThresholds.clear();
+        parts.clear();
+
+        try (java.sql.Connection c = com.magpi.db.Database.getInstance().getConnection()) {
+            String baseSql = "SELECT sp.id, sp.part_number, sp.status, " +
+                    "CASE WHEN (SELECT COUNT(*) FROM pragma_table_info('session_parts') WHERE name='crack_detected')>0 THEN sp.crack_detected ELSE NULL END AS crack_detected, " +
+                    "s.operator_name, s.supervisor_id, sp.created_at, s.company_name, s.machine_id, s.part_description, s.headshot_threshold, s.coilshot_threshold, s.start_time, s.end_time " +
+                    "FROM session_parts sp JOIN sessions s ON s.id = sp.session_id ORDER BY sp.created_at";
+
+            try (java.sql.PreparedStatement ps = c.prepareStatement(baseSql);
+                 java.sql.ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    java.util.Map<String, Object> m = new java.util.HashMap<>();
+                    m.put("id", rs.getLong(1));
+                    m.put("part_number", rs.getInt(2));
+                    m.put("status", rs.getString(3));
+                    m.put("crack_detected", rs.getObject(4));
+                    m.put("operator_name", rs.getString(5));
+                    m.put("supervisor_id", rs.getString(6));
+                    m.put("created_at", rs.getString(7));
+                    m.put("company_name", rs.getString(8));
+                    m.put("machine_id", rs.getString(9));
+                    m.put("part_description", rs.getString(10));
+                    m.put("headshot_threshold", rs.getDouble(11));
+                    m.put("coilshot_threshold", rs.getDouble(12));
+                    m.put("start_time", rs.getString(13));
+                    m.put("end_time", rs.getString(14));
+                    parts.add(m);
+
+                    operators.add(rs.getString(5));
+                    supervisors.add(rs.getString(6));
+                    dates.add(rs.getString(7));
+                    companies.add(rs.getString(8));
+                    machines.add(rs.getString(9));
+                    partDescriptions.add(rs.getString(10));
+                    headThresholds.add(rs.getDouble(11));
+                    coilThresholds.add(rs.getDouble(12));
+                    startTimes.add(rs.getString(13));
+                    endTimes.add(rs.getString(14));
+                }
+            }
+
+            // Helper to fill one hidden measurement table by meter type
+            java.util.function.BiConsumer<PersistentColorTableModel, String> fill = (model, meterType) -> {
+                for (java.util.Map<String, Object> p : parts) {
+                    Object[] row = new Object[model.getColumnCount()];
+                    row[0] = p.get("part_number");
+                    int statusCol = getStatusColumnIndex(model);
+                    int crackCol = getCrackColumnIndex(model);
+                    for (int i = 1; i < statusCol; i++) row[i] = "";
+
+                    // load up to 5 shots for this meter type
+                    try (java.sql.PreparedStatement ps2 = c.prepareStatement(
+                            "SELECT shot_index, current, duration FROM measurements WHERE session_part_id=? AND meter_type=? ORDER BY shot_index LIMIT 5")) {
+                        ps2.setLong(1, (Long) p.get("id"));
+                        ps2.setString(2, meterType);
+                        try (java.sql.ResultSet rs2 = ps2.executeQuery()) {
+                            while (rs2.next()) {
+                                int idx = rs2.getInt(1);
+                                if (idx < 5) {
+                                    int col = 1 + idx * 2;
+                                    row[col] = rs2.getDouble(2);
+                                    row[col + 1] = String.format(java.util.Locale.US, "%.3f", rs2.getDouble(3));
+                                }
+                            }
+                        }
+                    } catch (Exception ignore) {}
+
+                    String st = (String) p.get("status");
+                    row[statusCol] = st == null ? "" : st;
+                    Object cd = p.get("crack_detected");
+                    row[crackCol] = (cd == null) ? "" : (((Number) cd).intValue() == 1 ? "Yes" : "No");
+                    row[row.length - 1] = "Details";
+
+                    model.addRow(row);
+
+                    java.awt.Color stColor = ("PASS".equalsIgnoreCase(st)) ? java.awt.Color.GREEN : java.awt.Color.RED;
+                    model.setCellColor(model.getRowCount() - 1, statusCol, stColor);
+                    if (cd != null) {
+                        model.setCellColor(model.getRowCount() - 1, crackCol,
+                                ((Number) cd).intValue() == 1 ? java.awt.Color.RED : new java.awt.Color(224, 224, 224));
+                    }
+                }
+            };
+
+            fill.accept(headshotHistoryTableModel, "Headshot");
+            fill.accept(coilshotHistoryTableModel, "Coilshot");
+
+        } catch (Exception ex) {
+            // Ignore failures to keep app running
+        }
+
+        // After loading hidden tables from DB, rebuild the aggregated Part Test History table
+        rebuildPartHistoryTable();
     }
 }

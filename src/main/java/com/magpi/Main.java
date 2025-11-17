@@ -23,6 +23,7 @@ public class Main {
     private TablePage tablePage;
     private HistoryPage historyPage;
     private TestSession session;
+    private JButton logoutButton;
 
     // Modern UI Colors
     private static final Color PRIMARY_COLOR = new Color(25, 118, 210);   // Modern blue
@@ -37,6 +38,14 @@ public class Main {
     public Main() {
         // Set up custom UI styling
         setupModernUI();
+
+        // Initialize database (creates schema and default admin if needed)
+        try {
+            com.magpi.db.Database.getInstance().init();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(null, "Failed to initialize database: " + ex.getMessage(),
+                    "Database Error", JOptionPane.ERROR_MESSAGE);
+        }
 
         // Initialize the session
         session = new TestSession();
@@ -258,8 +267,11 @@ public class Main {
         buttonPanel.setBackground(MENU_COLOR);
         buttonPanel.setOpaque(true);
 
-        JButton homeButton = createMenuButton("Home");
-        homeButton.addActionListener(e -> tabbedPane.setSelectedIndex(0));
+        //logoutButton = createMenuButton("Logout");
+        //logoutButton.addActionListener(e -> handleLogout());
+        //logoutButton.setVisible(false); // Initially hidden until login
+        JButton homeButton = createMenuButton( "Logout" );
+        homeButton. addActionListener(e -> tabbedPane. setSelectedIndex(0));
 
         JButton historyButton = createMenuButton("View History");
         historyButton.addActionListener(e -> {
@@ -312,6 +324,15 @@ public class Main {
         // Update session with login info
         if (!loginPage.updateSessionWithLoginInfo(session)) {
             return; // Login validation failed
+        }
+
+        // Persist session to DB
+        try {
+            long sid = new com.magpi.db.SessionDao().insert(session);
+            session.setId(sid);
+        } catch (Exception ex) {
+            javax.swing.JOptionPane.showMessageDialog(frame, "Failed to save session: " + ex.getMessage(),
+                    "Database Error", javax.swing.JOptionPane.ERROR_MESSAGE);
         }
 
         // Create the table page and history page

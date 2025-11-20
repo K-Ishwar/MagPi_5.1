@@ -34,11 +34,19 @@ public class TestSession {
         parts.add(part);
     }
     
+    /**
+     * Returns the most recent TestPart for the given base part number.
+     * This is important when there are retests (e.g. 3, 3-1, 3-2) – we always
+     * want the latest instance rather than the original.
+     */
     public TestPart getPartByNumber(int partNumber) {
-        return parts.stream()
-                .filter(part -> part.getPartNumber() == partNumber)
-                .findFirst()
-                .orElse(null);
+        for (int i = parts.size() - 1; i >= 0; i--) {
+            TestPart part = parts.get(i);
+            if (part.getPartNumber() == partNumber) {
+                return part;
+            }
+        }
+        return null;
     }
     
     public void endSession() {

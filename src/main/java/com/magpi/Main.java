@@ -267,11 +267,10 @@ public class Main {
         buttonPanel.setBackground(MENU_COLOR);
         buttonPanel.setOpaque(true);
 
-        //logoutButton = createMenuButton("Logout");
-        //logoutButton.addActionListener(e -> handleLogout());
-        //logoutButton.setVisible(false); // Initially hidden until login
-        JButton homeButton = createMenuButton( "Logout" );
-        homeButton. addActionListener(e -> tabbedPane. setSelectedIndex(0));
+        // Logout button replaces Home and is only visible after successful login
+        logoutButton = createMenuButton("Logout");
+        logoutButton.addActionListener(e -> handleLogout());
+        logoutButton.setVisible(false); // Initially hidden until login
 
         JButton historyButton = createMenuButton("View History");
         historyButton.addActionListener(e -> {
@@ -283,7 +282,7 @@ public class Main {
         JButton aboutButton = createMenuButton("About");
         aboutButton.addActionListener(e -> showAboutDialog());
 
-        buttonPanel.add(homeButton);
+        buttonPanel.add(logoutButton);
         buttonPanel.add(historyButton);
         buttonPanel.add(aboutButton);
 
@@ -352,6 +351,11 @@ public class Main {
 
         // Navigate to the table page
         tabbedPane.setSelectedIndex(1);
+
+        // Show logout button now that a user is logged in
+        if (logoutButton != null) {
+            logoutButton.setVisible(true);
+        }
     }
 
     /**
@@ -386,6 +390,41 @@ public class Main {
                     }
                 }
             }
+        }
+    }
+
+    private void handleLogout() {
+        int confirm = JOptionPane.showConfirmDialog(frame,
+                "Are you sure you want to logout and end the current session?",
+                "Confirm Logout",
+                JOptionPane.YES_NO_OPTION);
+
+        if (confirm != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        // Clean up current table page resources (serial ports, etc.)
+        if (tablePage != null) {
+            tablePage.shutdown();
+        }
+
+        // Reset the tabbed pane back to just the login page
+        tabbedPane.removeAll();
+
+        // Create a fresh session and login page
+        session = new TestSession();
+        loginPage = new LoginPage();
+        loginPage.addLoginButton(e -> handleLogin());
+        tabbedPane.addTab("Login", loginPage);
+        tabbedPane.setSelectedIndex(0);
+
+        // Clear references to other pages
+        tablePage = null;
+        historyPage = null;
+
+        // Hide logout button until the next successful login
+        if (logoutButton != null) {
+            logoutButton.setVisible(false);
         }
     }
 

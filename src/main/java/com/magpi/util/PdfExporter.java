@@ -7,6 +7,9 @@ import com.itextpdf.layout.Document;
 import com.itextpdf.layout.element.Cell;
 import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
+import com.itextpdf.layout.element.Image;
+import com.itextpdf.io.image.ImageData;
+import com.itextpdf.io.image.ImageDataFactory;
 //import com.itextpdf.layout.property.UnitValue;
 import com.itextpdf.layout.properties.UnitValue;
 import com.magpi.model.TestPart;
@@ -417,6 +420,21 @@ public class PdfExporter {
             document.add(metadataTable);
             document.add(new Paragraph("\n"));
 
+            // Optional crack image from metadata, if available
+            String imgPath = metaGet(meta, "Crack Image Path");
+            if (imgPath != null && !imgPath.trim().isEmpty()) {
+                try {
+                    ImageData data = ImageDataFactory.create(imgPath);
+                    Image img = new Image(data);
+                    img.setAutoScale(true);
+                    document.add(new Paragraph("Crack Image").setFontSize(14).setBold());
+                    document.add(img);
+                    document.add(new Paragraph("\n"));
+                } catch (Exception ignored) {
+                    // If image fails to load, continue without it
+                }
+            }
+
             if (headshotTable.getRowCount() > 0) {
                 document.add(new Paragraph("Headshot Measurements").setFontSize(14).setBold());
                 document.add(createPdfTableWithColors(headshotTable));
@@ -435,5 +453,11 @@ public class PdfExporter {
                     "Error exporting to PDF: " + e.getMessage(),
                     "Export Error", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    private static String metaGet(java.util.Map<String,String> meta, String key) {
+        if (meta == null) return null;
+        String v = meta.get(key);
+        return (v == null || v.trim().isEmpty()) ? null : v;
     }
 }

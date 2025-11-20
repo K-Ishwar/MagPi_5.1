@@ -252,12 +252,43 @@ public class LoginPage extends JPanel {
     private void showLoginDialog() {
         // Create a dialog for login
         JDialog loginDialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Login", true);
-        loginDialog.setSize(450, 450);  // Increased width to accommodate lists
+        loginDialog.setSize(600, 550);  // Increased size to better show parameter history
         loginDialog.setLocationRelativeTo(this);
         loginDialog.setLayout(new BorderLayout());
 
+        // Add heading at the top center
+        JLabel titleLabel = new JLabel("Login", SwingConstants.CENTER);
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 18));
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        loginDialog.add(titleLabel, BorderLayout.NORTH);
+
         // Create tabbed pane for login and parameters
         JTabbedPane tabbedPane = new JTabbedPane();
+
+        // Hide the visible tab headers (Login Details / Parameters)
+        tabbedPane.setUI(new javax.swing.plaf.basic.BasicTabbedPaneUI() {
+            @Override
+            protected int calculateTabAreaHeight(int tabPlacement, int horizRunCount, int maxTabHeight) {
+                return 0; // Hide tab area
+            }
+
+            @Override
+            protected void paintTab(Graphics g, int tabPlacement, Rectangle[] rects, int tabIndex,
+                                    Rectangle iconRect, Rectangle textRect) {
+                // Do nothing to hide the tabs
+            }
+
+            @Override
+            protected void paintTabBorder(Graphics g, int tabPlacement, int tabIndex,
+                                          int x, int y, int w, int h, boolean isSelected) {
+                // Do nothing to hide the tab borders
+            }
+
+            @Override
+            protected void paintContentBorder(Graphics g, int tabPlacement, int selectedIndex) {
+                // Do nothing to hide the content border
+            }
+        });
 
         // Create login panel
         JPanel loginPanel = new JPanel(new GridBagLayout());
@@ -317,26 +348,7 @@ public class LoginPage extends JPanel {
         addOperatorButton.addActionListener(e -> addNewOperator());
         loginPanel.add(addOperatorButton, gbc);
 
-        // Part Description section
-        gbc.gridx = 0;
-        gbc.gridy = 5;
-        gbc.gridwidth = 1;
-        loginPanel.add(new JLabel("Part Description:"), gbc);
-
-        gbc.gridx = 1;
-        gbc.gridwidth = 1;
-        loginPanel.add(partDescriptionComboBox, gbc);
-
-        // Add part button
-        gbc.gridx = 1;
-        gbc.gridy = 6;
-        gbc.gridwidth = 1;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 0.0;
-        gbc.weighty = 0.0;
-        JButton addPartButton = new JButton("Add New Part Description");
-        addPartButton.addActionListener(e -> addNewPartDescription());
-        loginPanel.add(addPartButton, gbc);
+        // Part Description section has been moved to the Parameters tab
 
         // Add to tabbed pane
         tabbedPane.addTab("Login Details", loginPanel);
@@ -347,25 +359,50 @@ public class LoginPage extends JPanel {
         paramGbc.insets = new Insets(15, 15, 15, 15);
         paramGbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Headshot Threshold
+        // Part Description section (moved from Login Details tab)
         paramGbc.gridx = 0;
         paramGbc.gridy = 0;
+        paramGbc.gridwidth = 1;
+        parametersPanel.add(new JLabel("Part Description:"), paramGbc);
+
+        paramGbc.gridx = 1;
+        paramGbc.gridwidth = 1;
+        parametersPanel.add(partDescriptionComboBox, paramGbc);
+
+        // Add part button
+        paramGbc.gridx = 1;
+        paramGbc.gridy = 1;
+        paramGbc.gridwidth = 1;
+        paramGbc.fill = GridBagConstraints.HORIZONTAL;
+        paramGbc.weightx = 0.0;
+        paramGbc.weighty = 0.0;
+        JButton addPartButton = new JButton("Add New Part Description");
+        addPartButton.addActionListener(e -> addNewPartDescription());
+        parametersPanel.add(addPartButton, paramGbc);
+
+        // Headshot Threshold
+        paramGbc.gridx = 0;
+        paramGbc.gridy = 2;
+        paramGbc.gridwidth = 1;
         parametersPanel.add(new JLabel("Headshot Threshold (kA):"), paramGbc);
 
         paramGbc.gridx = 1;
+        paramGbc.gridwidth = 1;
         parametersPanel.add(headShotThresholdField, paramGbc);
 
         // Coilshot Threshold
         paramGbc.gridx = 0;
-        paramGbc.gridy = 1;
+        paramGbc.gridy = 3;
+        paramGbc.gridwidth = 1;
         parametersPanel.add(new JLabel("Coilshot Threshold (kA):"), paramGbc);
 
         paramGbc.gridx = 1;
+        paramGbc.gridwidth = 1;
         parametersPanel.add(coilShotThresholdField, paramGbc);
 
         // Save button
         paramGbc.gridx = 0;
-        paramGbc.gridy = 2;
+        paramGbc.gridy = 4;
         paramGbc.gridwidth = 2;
         JButton saveParametersButton = new JButton("Save Parameters");
         saveParametersButton.addActionListener(e -> saveParameters());
@@ -374,7 +411,7 @@ public class LoginPage extends JPanel {
 
         // Parameter history list
         paramGbc.gridx = 0;
-        paramGbc.gridy = 3;
+        paramGbc.gridy = 5;
         paramGbc.gridwidth = 2;
         paramGbc.fill = GridBagConstraints.BOTH;
         paramGbc.weightx = 1.0;
@@ -457,13 +494,12 @@ public class LoginPage extends JPanel {
         String machineId = machineIdField.getText().trim();
         String supervisorId = supervisorIdField.getText().trim();
         String operatorName = (String) operatorComboBox.getSelectedItem();
-        String partDescription = (String) partDescriptionComboBox.getSelectedItem();
 
-        // Validate required fields
+        // Validate required fields for the Login Details tab only
+        // (Part Description is now handled/validated on the Parameters tab.)
         if (companyName.isEmpty() || machineId.isEmpty() ||
                 supervisorId.isEmpty() || operatorName == null ||
-                operatorName.trim().isEmpty() || partDescription == null ||
-                partDescription.trim().isEmpty()) {
+                operatorName.trim().isEmpty()) {
 
             JOptionPane.showMessageDialog(this,
                     "Please fill all required fields",
@@ -476,6 +512,15 @@ public class LoginPage extends JPanel {
     }
 
     private boolean validateParameters() {
+        String partDescription = (String) partDescriptionComboBox.getSelectedItem();
+        if (partDescription == null || partDescription.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Please enter a Part Description and save parameters",
+                    "Validation Error",
+                    JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
         try {
             double headShotThreshold = Double.parseDouble(headShotThresholdField.getText().trim());
             double coilShotThreshold = Double.parseDouble(coilShotThresholdField.getText().trim());

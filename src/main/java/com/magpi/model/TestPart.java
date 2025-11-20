@@ -16,6 +16,7 @@ public class TestPart {
     private List<Measurement> coilshotMeasurements;
     private String status; // "PASS" or "ERROR"
     private int recheckCount; // 0 for original, >0 for rechecks
+    private String crackImagePath; // Optional path to captured crack image
 
     public TestPart(int partNumber, String partDescription) {
         this.partNumber = partNumber;
@@ -25,6 +26,7 @@ public class TestPart {
         this.coilshotMeasurements = new ArrayList<>();
         this.status = "";
         this.recheckCount = 0;
+        this.crackImagePath = null;
     }
 
     public void addHeadshotMeasurement(Measurement measurement) {
@@ -68,6 +70,9 @@ public class TestPart {
 
     public int getRecheckCount() { return recheckCount; }
     public void setRecheckCount(int recheckCount) { this.recheckCount = recheckCount; }
+
+    public String getCrackImagePath() { return crackImagePath; }
+    public void setCrackImagePath(String crackImagePath) { this.crackImagePath = crackImagePath; }
 
     /**
      * Gets a specific headshot measurement by index

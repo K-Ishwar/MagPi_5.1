@@ -2,9 +2,12 @@ package com.magpi.ui;
 
 import com.magpi.util.PdfExporter;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.File;
 
 /**
  * Dialog to show part details and export as PDF.
@@ -16,7 +19,7 @@ public class PartDetailsDialog extends JDialog {
                              JTable sourceCoilshotTable, int coilRow,
                              java.util.Map<String, String> meta) {
         super(owner, title, ModalityType.APPLICATION_MODAL);
-        setSize(820, 560);
+        setSize(900, 600);
         setLocationRelativeTo(owner);
         setLayout(new BorderLayout(10,10));
 
@@ -34,12 +37,39 @@ public class PartDetailsDialog extends JDialog {
         }
         add(metaPanel, BorderLayout.NORTH);
 
+        JPanel centerPanel = new JPanel(new BorderLayout(10,10));
+
         JPanel tables = new JPanel(new GridLayout(1,2,10,10));
         JTable headCopy = buildFilteredSingleRowTable(sourceHeadshotTable, headRow);
         JTable coilCopy = buildFilteredSingleRowTable(sourceCoilshotTable, coilRow);
         tables.add(wrapWithTitled(headCopy, "Headshot Measurements"));
         tables.add(wrapWithTitled(coilCopy, "Coilshot Measurements"));
-        add(tables, BorderLayout.CENTER);
+        centerPanel.add(tables, BorderLayout.CENTER);
+
+        // Optional crack image preview on the right side
+        String crackImagePath = meta.get("Crack Image Path");
+        if (crackImagePath != null && !crackImagePath.trim().isEmpty()) {
+            try {
+                File imgFile = new File(crackImagePath);
+                if (imgFile.exists()) {
+                    BufferedImage img = ImageIO.read(imgFile);
+                    if (img != null) {
+                        int targetWidth = 260;
+                        int targetHeight = (int) ((double) img.getHeight() / img.getWidth() * targetWidth);
+                        Image scaled = img.getScaledInstance(targetWidth, targetHeight, Image.SCALE_SMOOTH);
+                        JLabel imgLabel = new JLabel(new ImageIcon(scaled));
+                        imgLabel.setHorizontalAlignment(SwingConstants.CENTER);
+                        imgLabel.setVerticalAlignment(SwingConstants.TOP);
+                        imgLabel.setBorder(BorderFactory.createTitledBorder("Crack Image"));
+                        centerPanel.add(imgLabel, BorderLayout.EAST);
+                    }
+                }
+            } catch (Exception ignored) {
+                // If image cannot be loaded, silently ignore and show no preview
+            }
+        }
+
+        add(centerPanel, BorderLayout.CENTER);
 
         JButton exportBtn = new JButton("Export Part to PDF");
         exportBtn.addActionListener(e -> PdfExporter.exportPartDetails(meta, headCopy, coilCopy, this));

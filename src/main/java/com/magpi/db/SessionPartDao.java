@@ -40,4 +40,31 @@ public class SessionPartDao {
             ps.executeUpdate();
         }
     }
+
+    public void updateCrackImagePath(long partId, String imagePath) throws SQLException {
+        String sql = "UPDATE session_parts SET crack_image_path = ? WHERE id = ?";
+        try (Connection c = Database.getInstance().getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, imagePath);
+            ps.setLong(2, partId);
+            ps.executeUpdate();
+        }
+    }
+
+    /**
+     * Checks if a given part number/description combination already exists in history.
+     * This is used to prevent creating a new base part with a number that has already
+     * been used for the same part description in any previous session.
+     */
+    public boolean existsPartNumberForDescription(int partNumber, String partDescription) throws SQLException {
+        String sql = "SELECT 1 FROM session_parts WHERE part_number = ? AND part_description = ? LIMIT 1";
+        try (Connection c = Database.getInstance().getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, partNumber);
+            ps.setString(2, partDescription);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
 }

@@ -4,8 +4,9 @@ import com.magpi.model.TestSession;
 import com.magpi.ui.table.CustomCellRenderer;
 import com.magpi.ui.table.PersistentColorTableModel;
 import com.magpi.util.PdfExporter;
-import com.magpi.video.RecordedVideosPage;
-import com.magpi.video.VLCJVideoStream;
+// Video recordings feature temporarily disabled
+// import com.magpi.video.RecordedVideosPage;
+// import com.magpi.video.VLCJVideoStream;
 
 import javax.swing.*;
 import javax.swing.table.TableRowSorter;
@@ -28,7 +29,7 @@ public class HistoryPage extends JPanel {
     private PersistentColorTableModel headshotHistoryTableModel;
     private PersistentColorTableModel coilshotHistoryTableModel;
 
-    private RecordedVideosPage recordedVideosPage;
+    // private RecordedVideosPage recordedVideosPage; // video feature disabled
 
     // Per-part metadata aligned to model rows (index matches DB order / hidden tables)
     private java.util.List<java.util.Map<String, Object>> parts = new java.util.ArrayList<>();
@@ -43,6 +44,7 @@ public class HistoryPage extends JPanel {
     private java.util.List<String> endTimes = new java.util.ArrayList<>();
     private java.util.List<Double> headThresholds = new java.util.ArrayList<>();
     private java.util.List<Double> coilThresholds = new java.util.ArrayList<>();
+    private java.util.List<String> crackImagePaths = new java.util.ArrayList<>();
 
     /**
      * Creates a new history page
@@ -90,15 +92,10 @@ public class HistoryPage extends JPanel {
         headerPanel.setBackground(new Color(240, 240, 240));
         headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
 
-        // Style the labels in the header
-        JLabel operatorLabel = new JLabel("Operator: " + session.getOperatorName());
-        operatorLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        operatorLabel.setForeground(new Color(44, 62, 80));
-
+        // Style the labels in the header (no operator name shown on history page)
         JLabel machineIdLabel = new JLabel("Machine ID: " + session.getMachineId());
         machineIdLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         machineIdLabel.setForeground(new Color(44, 62, 80));
-        headerPanel.add(operatorLabel);
         headerPanel.add(machineIdLabel);
         add(headerPanel, BorderLayout.NORTH);
 
@@ -144,7 +141,7 @@ public class HistoryPage extends JPanel {
         JLabel filterLabel = new JLabel("Filter:");
         filterLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
 
-        JComboBox<String> filterComboBox = new JComboBox<>(new String[]{"All", "PASS", "FAIL"});
+        JComboBox<String> filterComboBox = new JComboBox<>(new String[]{"All", "Pass", "Crack", "Error", "Retest"});
         filterComboBox.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         filterComboBox.setBackground(Color.WHITE);
         filterComboBox.addActionListener(e -> filterResults((String) filterComboBox.getSelectedItem()));
@@ -158,9 +155,9 @@ public class HistoryPage extends JPanel {
         styleButton(exportSummaryButton, new Color(52, 152, 219), Color.WHITE);
         exportSummaryButton.addActionListener(e -> exportSummaryPdf());
 
-        JButton viewRecordingsButton = new JButton("View Recordings");
-        styleButton(viewRecordingsButton, new Color(46, 204, 113), Color.WHITE);
-        viewRecordingsButton.addActionListener(e -> viewRecordings());
+        // JButton viewRecordingsButton = new JButton("View Recordings");
+        // styleButton(viewRecordingsButton, new Color(46, 204, 113), Color.WHITE);
+        // viewRecordingsButton.addActionListener(e -> viewRecordings());
 
         JButton backToTableButton = new JButton("Back to Live View");
         styleButton(backToTableButton, new Color(156, 39, 176), Color.WHITE);
@@ -174,7 +171,7 @@ public class HistoryPage extends JPanel {
         controlsPanel.add(filterComboBox);
         controlsPanel.add(exportButton);
         controlsPanel.add(exportSummaryButton);
-        controlsPanel.add(viewRecordingsButton);
+        // controlsPanel.add(viewRecordingsButton); // disabled
         controlsPanel.add(backToTableButton);
 
         add(controlsPanel, BorderLayout.SOUTH);
@@ -210,17 +207,17 @@ public class HistoryPage extends JPanel {
     private void filterResults(String filterOption) {
         RowFilter<Object, Object> filter = null;
 
-        if (!"All".equals(filterOption)) {
-            // Filter based on Headshot / CoilShot status text (PASS/FAIL)
+        if (!"All".equalsIgnoreCase(filterOption)) {
+            // Filter based on Headshot / CoilShot status text (Pass/Crack/Error/Retest)
             final int headCol = 1; // Headshot
             final int coilCol = 2; // CoilShot
             final String wanted = filterOption.toUpperCase();
 
             filter = new RowFilter<Object, Object>() {
                 public boolean include(Entry entry) {
-                    String h = String.valueOf(entry.getValue(headCol));
-                    String c = String.valueOf(entry.getValue(coilCol));
-                    return h.toUpperCase().contains(wanted) || c.toUpperCase().contains(wanted);
+                    String h = String.valueOf(entry.getValue(headCol)).toUpperCase();
+                    String c = String.valueOf(entry.getValue(coilCol)).toUpperCase();
+                    return h.contains(wanted) || c.contains(wanted);
                 }
             };
         }
@@ -709,20 +706,21 @@ public class HistoryPage extends JPanel {
         }
     }
 
-    private void viewRecordings() {
-        if (recordedVideosPage == null || !recordedVideosPage.isVisible()) {
-            recordedVideosPage = new RecordedVideosPage(VLCJVideoStream.saveLocation);
-            recordedVideosPage.addWindowListener(new java.awt.event.WindowAdapter() {
-                @Override
-                public void windowClosing(java.awt.event.WindowEvent windowEvent) {
-                    recordedVideosPage.cleanup();
-                }
-            });
-            recordedVideosPage.setVisible(true);
-        } else {
-            recordedVideosPage.toFront();
-        }
-    }
+    // Video recordings feature temporarily disabled; keeping method commented for future use
+//    private void viewRecordings() {
+//        if (recordedVideosPage == null || !recordedVideosPage.isVisible()) {
+//            recordedVideosPage = new RecordedVideosPage(VLCJVideoStream.saveLocation);
+//            recordedVideosPage.addWindowListener(new java.awt.event.WindowAdapter() {
+//                @Override
+//                public void windowClosing(java.awt.event.WindowEvent windowEvent) {
+//                    recordedVideosPage.cleanup();
+//                }
+//            });
+//            recordedVideosPage.setVisible(true);
+//        } else {
+//            recordedVideosPage.toFront();
+//        }
+//    }
 
     private void navigateToTablePage() {
         // Find the parent tabbed pane and switch to the table page
@@ -848,12 +846,20 @@ public class HistoryPage extends JPanel {
         table.getTableHeader().setBackground(new Color(230, 230, 230));
         table.getTableHeader().setForeground(new Color(44, 62, 80));
 
-        // Column widths: Part, Headshot, CoilShot, Date, Time, Operator, Details
-        if (table.getColumnModel().getColumnCount() >= 7) {
+        // Column widths: Part, Headshot, CoilShot, Date, Time, [Operator hidden], Details
+        if (table.getColumnModel().getColumnCount() >= 6) {
             table.getColumnModel().getColumn(0).setPreferredWidth(80);
             table.getColumnModel().getColumn(1).setPreferredWidth(80);
             table.getColumnModel().getColumn(2).setPreferredWidth(80);
             table.getColumnModel().getColumn(3).setPreferredWidth(120);
+        }
+
+        // Hide Operator column from view but keep it in the model for exports/filters
+        try {
+            int operatorViewIndex = table.getColumnModel().getColumnIndex("Operator");
+            table.removeColumn(table.getColumnModel().getColumn(operatorViewIndex));
+        } catch (IllegalArgumentException ignored) {
+            // Column not found; nothing to hide
         }
 
         table.getTableHeader().setResizingAllowed(false);
@@ -910,7 +916,8 @@ public class HistoryPage extends JPanel {
     public void addPartMetadata(String operator, String supervisor, String createdAt,
                                 String company, String machine, String partDesc,
                                 double headThreshold, double coilThreshold,
-                                String startTime, String endTime) {
+                                String startTime, String endTime,
+                                String crackImagePath) {
         operators.add(operator);
         supervisors.add(supervisor);
         dates.add(createdAt);
@@ -921,6 +928,7 @@ public class HistoryPage extends JPanel {
         coilThresholds.add(coilThreshold);
         startTimes.add(startTime);
         endTimes.add(endTime);
+        crackImagePaths.add(crackImagePath);
     }
 
     private int getStatusColumnIndex(PersistentColorTableModel model) {
@@ -954,6 +962,14 @@ public class HistoryPage extends JPanel {
                     meta.put("End Time", modelRow < endTimes.size() ? endTimes.get(modelRow) : "");
                     meta.put("Headshot Threshold", modelRow < headThresholds.size() ? String.valueOf(headThresholds.get(modelRow)) : "");
                     meta.put("Coilshot Threshold", modelRow < coilThresholds.size() ? String.valueOf(coilThresholds.get(modelRow)) : "");
+
+                    // Optional crack image path (from DB or current session)
+                    if (modelRow < crackImagePaths.size()) {
+                        String imgPath = crackImagePaths.get(modelRow);
+                        if (imgPath != null && !imgPath.trim().isEmpty()) {
+                            meta.put("Crack Image Path", imgPath);
+                        }
+                    }
 
                     // Overall status / crack from hidden headshot table (if present)
                     String status = "";
@@ -1082,11 +1098,13 @@ public class HistoryPage extends JPanel {
         operators.clear(); supervisors.clear(); dates.clear();
         companies.clear(); machines.clear(); partDescriptions.clear();
         startTimes.clear(); endTimes.clear(); headThresholds.clear(); coilThresholds.clear();
+        crackImagePaths.clear();
         parts.clear();
 
         try (java.sql.Connection c = com.magpi.db.Database.getInstance().getConnection()) {
             String baseSql = "SELECT sp.id, sp.part_number, sp.status, " +
                     "CASE WHEN (SELECT COUNT(*) FROM pragma_table_info('session_parts') WHERE name='crack_detected')>0 THEN sp.crack_detected ELSE NULL END AS crack_detected, " +
+                    "CASE WHEN (SELECT COUNT(*) FROM pragma_table_info('session_parts') WHERE name='crack_image_path')>0 THEN sp.crack_image_path ELSE NULL END AS crack_image_path, " +
                     "s.operator_name, s.supervisor_id, sp.created_at, s.company_name, s.machine_id, s.part_description, s.headshot_threshold, s.coilshot_threshold, s.start_time, s.end_time " +
                     "FROM session_parts sp JOIN sessions s ON s.id = sp.session_id ORDER BY sp.created_at";
 
@@ -1098,28 +1116,30 @@ public class HistoryPage extends JPanel {
                     m.put("part_number", rs.getInt(2));
                     m.put("status", rs.getString(3));
                     m.put("crack_detected", rs.getObject(4));
-                    m.put("operator_name", rs.getString(5));
-                    m.put("supervisor_id", rs.getString(6));
-                    m.put("created_at", rs.getString(7));
-                    m.put("company_name", rs.getString(8));
-                    m.put("machine_id", rs.getString(9));
-                    m.put("part_description", rs.getString(10));
-                    m.put("headshot_threshold", rs.getDouble(11));
-                    m.put("coilshot_threshold", rs.getDouble(12));
-                    m.put("start_time", rs.getString(13));
-                    m.put("end_time", rs.getString(14));
+                    m.put("crack_image_path", rs.getString(5));
+                    m.put("operator_name", rs.getString(6));
+                    m.put("supervisor_id", rs.getString(7));
+                    m.put("created_at", rs.getString(8));
+                    m.put("company_name", rs.getString(9));
+                    m.put("machine_id", rs.getString(10));
+                    m.put("part_description", rs.getString(11));
+                    m.put("headshot_threshold", rs.getDouble(12));
+                    m.put("coilshot_threshold", rs.getDouble(13));
+                    m.put("start_time", rs.getString(14));
+                    m.put("end_time", rs.getString(15));
                     parts.add(m);
 
-                    operators.add(rs.getString(5));
-                    supervisors.add(rs.getString(6));
-                    dates.add(rs.getString(7));
-                    companies.add(rs.getString(8));
-                    machines.add(rs.getString(9));
-                    partDescriptions.add(rs.getString(10));
-                    headThresholds.add(rs.getDouble(11));
-                    coilThresholds.add(rs.getDouble(12));
-                    startTimes.add(rs.getString(13));
-                    endTimes.add(rs.getString(14));
+                    operators.add(rs.getString(6));
+                    supervisors.add(rs.getString(7));
+                    dates.add(rs.getString(8));
+                    companies.add(rs.getString(9));
+                    machines.add(rs.getString(10));
+                    partDescriptions.add(rs.getString(11));
+                    headThresholds.add(rs.getDouble(12));
+                    coilThresholds.add(rs.getDouble(13));
+                    startTimes.add(rs.getString(14));
+                    endTimes.add(rs.getString(15));
+                    crackImagePaths.add(rs.getString(5));
                 }
             }
 

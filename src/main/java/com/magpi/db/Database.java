@@ -119,12 +119,14 @@ public class Database {
                     "part_description TEXT, " +
                     "status TEXT, " +
                     "crack_detected INTEGER, " +
+                    "crack_image_path TEXT, " +
                     "created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
                     "FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE" +
                     ")");
 
-            // Attempt to add crack_detected to existing DBs
+            // Attempt to add crack_detected and crack_image_path to existing DBs
             try { st.executeUpdate("ALTER TABLE session_parts ADD COLUMN crack_detected INTEGER"); } catch (Exception ignore) {}
+            try { st.executeUpdate("ALTER TABLE session_parts ADD COLUMN crack_image_path TEXT"); } catch (Exception ignore) {}
             st.executeUpdate("CREATE INDEX IF NOT EXISTS idx_session_parts_sess ON session_parts(session_id)");
 
             // Individual measurements for a session part

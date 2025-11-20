@@ -6,7 +6,8 @@ import com.magpi.model.TestSession;
 import com.magpi.ui.table.CustomCellRenderer;
 import com.magpi.ui.table.PersistentColorTableModel;
 import com.magpi.util.SerialPortManager;
-import com.magpi.video.VLCJVideoStream;
+// Video capture feature (VLCJ) temporarily disabled
+// import com.magpi.video.VLCJVideoStream;
 import com.magpi.util.PersistentLibrary;
 
 import javax.swing.*;
@@ -32,6 +33,7 @@ public class TablePage extends JPanel {
     private JLabel endTimeLabel;
     private JLabel parametersLabel;
     private JLabel Part_D;
+    private JLabel operatorLabel;
     private TestSession session;
     private SerialPortManager serialPortManager;
 
@@ -79,7 +81,8 @@ public class TablePage extends JPanel {
         endTimeLabel = new JLabel("End Time: Not Ended");
         parametersLabel = new JLabel("Parameters: Not Set");
         parametersLabel = new JLabel("Parameters: Not Set");
-        Part_D = new JLabel("Part: "+session.getPartDescription());
+        Part_D = new JLabel("Part: " + session.getPartDescription());
+        operatorLabel = new JLabel("Operator: " + session.getOperatorName());
 
         // Initialize serial port manager
         serialPortManager = new SerialPortManager();
@@ -112,18 +115,23 @@ public class TablePage extends JPanel {
         // Reset gridwidth
         gbc.gridwidth = 1;
 
-        // Second row of header - Parameters and part info
+        // Second row of header - Parameters, part info and operator
         gbc.gridx = 0;
         gbc.gridy = 1;
         gbc.weightx = 0.7;
         parametersLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         headerPanel.add(parametersLabel, gbc);
 
-        // Part description
+        // Part description and operator name
         gbc.gridx = 1;
         gbc.weightx = 0.3;
         Part_D.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        headerPanel.add(Part_D, gbc);
+        operatorLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        JPanel partOperatorPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        partOperatorPanel.setOpaque(false);
+        partOperatorPanel.add(Part_D);
+        partOperatorPanel.add(operatorLabel);
+        headerPanel.add(partOperatorPanel, gbc);
 
         // Button panel in header
         gbc.gridx = 2;
@@ -144,15 +152,15 @@ public class TablePage extends JPanel {
         addPartButton.addActionListener(e -> addNewPart());
         addPartButton.setPreferredSize(new Dimension(180, 40));
 
-        // Video capture button with modern styling
-        JButton videoStreamButton = new JButton("Capture Video");
-        styleButton(videoStreamButton, new Color(46, 204, 113), Color.WHITE);
-        videoStreamButton.addActionListener(e -> openVideoStream());
-        videoStreamButton.setPreferredSize(new Dimension(150, 40));
+        // Video capture button with modern styling (temporarily disabled)
+        // JButton videoStreamButton = new JButton("Capture Video");
+        // styleButton(videoStreamButton, new Color(46, 204, 113), Color.WHITE);
+        // videoStreamButton.addActionListener(e -> openVideoStream());
+        // videoStreamButton.setPreferredSize(new Dimension(150, 40));
 
         //buttonsPanel.add(rbutton);
         buttonsPanel.add(addPartButton);
-        buttonsPanel.add(videoStreamButton);
+        // buttonsPanel.add(videoStreamButton); // disabled
         headerPanel.add(buttonsPanel, gbc);
 
         add(headerPanel, BorderLayout.NORTH);
@@ -458,6 +466,7 @@ public class TablePage extends JPanel {
                     TestPart newRecheckPart = new TestPart(currentPartNumber, session.getPartDescription());
                     newRecheckPart.setRecheckCount(countRechecksFor(currentPartNumber) + 1);
                     session.addPart(newRecheckPart);
+                    persistPartIfPossible(newRecheckPart);
                     insertNewPartRow(headshotTableModel, newRecheckPart);
                     insertNewPartRow(coilshotTableModel, newRecheckPart);
                     return;
@@ -482,7 +491,8 @@ public class TablePage extends JPanel {
                     boolean cracksFound = (crackOption == 0);
 
                     // Update status text over existing GREEN background
-                    String uiText = cracksFound ? "Error" : "Pass";
+                    // Show "Crack" when user explicitly reports a crack, otherwise "Pass".
+                    String uiText = cracksFound ? "Crack" : "Pass";
                     setStatusText(headshotTableModel, currentPartNumber, uiText);
                     setStatusText(coilshotTableModel, currentPartNumber, uiText);
 
@@ -498,15 +508,40 @@ public class TablePage extends JPanel {
                             } catch (Exception ignored) {}
                         }
                     }
+
+                    // Optional crack image capture when cracks are found
+                    if (part != null && cracksFound) {
+                        int captureChoice = JOptionPane.showConfirmDialog(
+                                this,
+                                "Capture crack image for Part #" + currentPartNumber + " now?",
+                                "Capture Crack Image",
+                                JOptionPane.YES_NO_OPTION,
+                                JOptionPane.QUESTION_MESSAGE
+                        );
+
+                        if (captureChoice == JOptionPane.YES_OPTION) {
+                            java.awt.Window owner = javax.swing.SwingUtilities.getWindowAncestor(this);
+                            String imagePath = com.magpi.ui.CrackImageCaptureDialog.captureForPart(owner, currentPartNumber);
+                            if (imagePath != null && !imagePath.trim().isEmpty()) {
+                                part.setCrackImagePath(imagePath);
+                                if (part.getId() != null) {
+                                    try {
+                                        new com.magpi.db.SessionPartDao().updateCrackImagePath(part.getId(), imagePath);
+                                    } catch (Exception ignored) {}
+                                }
+                            }
+                        }
+                    }
                 } else if (crackOption == 2) { // Retest
                     // Mark current part as "retest" in status text, keep GREEN color
-                    setStatusText(headshotTableModel, currentPartNumber, "retest");
-                    setStatusText(coilshotTableModel, currentPartNumber, "retest");
+                    setStatusText(headshotTableModel, currentPartNumber, "Retest");
+                    setStatusText(coilshotTableModel, currentPartNumber, "Retest");
 
                     // Create a new row for the same part number, with a recheck suffix (e.g. 124-1, 124-2)
                     TestPart retestPart = new TestPart(currentPartNumber, session.getPartDescription());
                     retestPart.setRecheckCount(countRechecksFor(currentPartNumber) + 1);
                     session.addPart(retestPart);
+                    persistPartIfPossible(retestPart);
                     insertNewPartRow(headshotTableModel, retestPart);
                     insertNewPartRow(coilshotTableModel, retestPart);
                     // Skip prompting for a new part number; user will now measure this retest row
@@ -515,39 +550,87 @@ public class TablePage extends JPanel {
             }
         }
 
-        // Now prompt for the new part number
-        String input = JOptionPane.showInputDialog(this,
-                "Enter Part Number:",
-                "New Part",
-                JOptionPane.QUESTION_MESSAGE);
+        // Now prompt for the new part number (re-prompt on invalid/duplicate)
+        while (true) {
+            String input = JOptionPane.showInputDialog(this,
+                    "Enter Part Number:",
+                    "New Part",
+                    JOptionPane.QUESTION_MESSAGE);
 
-        if (input != null && !input.trim().isEmpty()) {
+            // User cancelled or closed dialog
+            if (input == null || input.trim().isEmpty()) {
+                break;
+            }
+
             try {
                 int partNumber = Integer.parseInt(input.trim());
 
-                // Check if part already exists
+                // Check if part already exists in the current session
                 if (session.getPartByNumber(partNumber) != null) {
                     JOptionPane.showMessageDialog(this,
-                            "Part number " + partNumber + " already exists.",
+                            "Part number " + partNumber + " already exists in this session.",
                             "Duplicate Part",
                             JOptionPane.WARNING_MESSAGE);
-                    return;
+                    // Re-prompt
+                    continue;
+                }
+
+                // Check if part number/description already exists in history (any previous session)
+                try {
+                    com.magpi.db.SessionPartDao dao = new com.magpi.db.SessionPartDao();
+                    if (dao.existsPartNumberForDescription(partNumber, session.getPartDescription())) {
+                        JOptionPane.showMessageDialog(this,
+                                "Part number " + partNumber + " for part '" + session.getPartDescription() + "' already exists in history.",
+                                "Duplicate Part in History",
+                                JOptionPane.WARNING_MESSAGE);
+                        // Re-prompt
+                        continue;
+                    }
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(this,
+                            "Failed to check history for duplicate part: " + ex.getMessage(),
+                            "Database Error",
+                            JOptionPane.ERROR_MESSAGE);
+                    // On DB error, stop prompting to avoid infinite loop
+                    break;
                 }
 
                 // Create new part
                 TestPart part = new TestPart(partNumber, session.getPartDescription());
                 session.addPart(part);
+                persistPartIfPossible(part);
 
                 // Add to tables
                 insertNewPartRow(headshotTableModel, part);
                 insertNewPartRow(coilshotTableModel, part);
+
+                // Successfully created part, exit loop
+                break;
 
             } catch (NumberFormatException e) {
                 JOptionPane.showMessageDialog(this,
                         "Please enter a valid number.",
                         "Invalid Input",
                         JOptionPane.ERROR_MESSAGE);
+                // Re-prompt
             }
+        }
+    }
+
+    /**
+     * Ensures a TestPart is persisted to the database and has an ID if possible.
+     */
+    private void persistPartIfPossible(TestPart part) {
+        try {
+            if (part != null && part.getId() == null && session.getId() != null) {
+                long pid = new com.magpi.db.SessionPartDao().insert(session.getId(), part);
+                part.setId(pid);
+            }
+        } catch (Exception ex) {
+            javax.swing.JOptionPane.showMessageDialog(this,
+                    "Failed to save part: " + ex.getMessage(),
+                    "Database Error",
+                    javax.swing.JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -562,7 +645,8 @@ public class TablePage extends JPanel {
                 int statusCol = getStatusColumnIndex(tableModel);
 
                 // Update the text only; keep whatever background color is already set
-                String statusText = cracksFound ? "Error" : "Pass";
+                // Show "Crack" when user explicitly reports a crack, otherwise "Pass".
+                String statusText = cracksFound ? "Crack" : "Pass";
                 tableModel.setValueAt(statusText, i, statusCol);
 
                 // If there is no color yet (e.g. called at endSession), set a sensible default
@@ -574,21 +658,22 @@ public class TablePage extends JPanel {
         }
     }
 
-    private void openVideoStream() {
-        // Get the current part number
-        int currentPartNumber = getCurrentPartNumber();
-
-        // Create video stream with current part number
-        VLCJVideoStream videoStream = new VLCJVideoStream(currentPartNumber);
-        videoStream.show();
-
-        // Notify user
-        JOptionPane.showMessageDialog(this,
-                "Recording video for Part #" + currentPartNumber + "\n" +
-                        "Videos will be saved in: " + VLCJVideoStream.saveLocation,
-                "Video Recording",
-                JOptionPane.INFORMATION_MESSAGE);
-    }
+    // Video capture feature temporarily disabled; keeping method commented for future use
+//    private void openVideoStream() {
+//        // Get the current part number
+//        int currentPartNumber = getCurrentPartNumber();
+//
+//        // Create video stream with current part number
+//        VLCJVideoStream videoStream = new VLCJVideoStream(currentPartNumber);
+//        videoStream.show();
+//
+//        // Notify user
+//        JOptionPane.showMessageDialog(this,
+//                "Recording video for Part #" + currentPartNumber + "\n" +
+//                        "Videos will be saved in: " + VLCJVideoStream.saveLocation,
+//                "Video Recording",
+//                JOptionPane.INFORMATION_MESSAGE);
+//    }
 
     private void updateParameters() {
         // Use thresholds already stored in the session (set from LoginPage)
@@ -636,6 +721,30 @@ public class TablePage extends JPanel {
                 boolean cracksFound = (crackOption == JOptionPane.YES_OPTION);
                 updateStatusWithCrackInfo(headshotTableModel, partNumber, cracksFound);
                 updateStatusWithCrackInfo(coilshotTableModel, partNumber, cracksFound);
+
+                // Optional crack image capture when ending session and cracks were found
+                if (cracksFound) {
+                    int captureChoice = JOptionPane.showConfirmDialog(
+                            this,
+                            "Capture crack image for Part #" + partLabel + " now?",
+                            "Capture Crack Image",
+                            JOptionPane.YES_NO_OPTION,
+                            JOptionPane.QUESTION_MESSAGE
+                    );
+
+                    if (captureChoice == JOptionPane.YES_OPTION) {
+                        java.awt.Window owner = javax.swing.SwingUtilities.getWindowAncestor(this);
+                        String imagePath = com.magpi.ui.CrackImageCaptureDialog.captureForPart(owner, partNumber);
+                        if (imagePath != null && !imagePath.trim().isEmpty()) {
+                            lastPart.setCrackImagePath(imagePath);
+                            if (lastPart.getId() != null) {
+                                try {
+                                    new com.magpi.db.SessionPartDao().updateCrackImagePath(lastPart.getId(), imagePath);
+                                } catch (Exception ignored) {}
+                            }
+                        }
+                    }
+                }
 
                 // Update part status in the model and DB
                 String st = cracksFound ? "ERROR" : "PASS";
@@ -689,7 +798,8 @@ public class TablePage extends JPanel {
                 session.getHeadShotThreshold(),
                 session.getCoilShotThreshold(),
                 session.getStartTime().format(formatter),
-                session.getEndTime() != null ? session.getEndTime().format(formatter) : ""
+                session.getEndTime() != null ? session.getEndTime().format(formatter) : "",
+                part.getCrackImagePath()
             );
         }
 

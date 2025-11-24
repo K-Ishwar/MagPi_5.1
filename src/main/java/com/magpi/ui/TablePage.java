@@ -39,6 +39,7 @@ public class TablePage extends JPanel {
 
     /**
      * Creates a new table page
+     * 
      * @param session The test session
      */
     public TablePage(TestSession session) {
@@ -77,7 +78,8 @@ public class TablePage extends JPanel {
 
         // Initialize labels
         dateLabel = new JLabel("Date: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
-        startTimeLabel = new JLabel("Start Time: " + session.getStartTime().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
+        startTimeLabel = new JLabel(
+                "Start Time: " + session.getStartTime().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
         endTimeLabel = new JLabel("End Time: Not Ended");
         parametersLabel = new JLabel("Parameters: Not Set");
         parametersLabel = new JLabel("Parameters: Not Set");
@@ -153,7 +155,7 @@ public class TablePage extends JPanel {
         // videoStreamButton.addActionListener(e -> openVideoStream());
         // videoStreamButton.setPreferredSize(new Dimension(150, 40));
 
-        //buttonsPanel.add(rbutton);
+        // buttonsPanel.add(rbutton);
         buttonsPanel.add(addPartButton);
         // buttonsPanel.add(videoStreamButton); // disabled
         headerPanel.add(buttonsPanel, gbc);
@@ -179,9 +181,9 @@ public class TablePage extends JPanel {
         JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 15));
         actionPanel.setBackground(new Color(255, 255, 255));
 
-        JButton endButton = new JButton("End Session");
+        JButton endButton = new JButton("End Test");
         styleButton(endButton, new Color(231, 76, 60), Color.WHITE);
-        endButton.addActionListener(e -> endSession());
+        endButton.addActionListener(e -> endTest());
         endButton.setPreferredSize(new Dimension(150, 40));
         actionPanel.add(endButton);
 
@@ -215,8 +217,7 @@ public class TablePage extends JPanel {
         JScrollPane scrollPane = new JScrollPane(table);
         scrollPane.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(180, 180, 180)),
-                BorderFactory.createEmptyBorder(5, 5, 5, 5)
-        ));
+                BorderFactory.createEmptyBorder(5, 5, 5, 5)));
         scrollPane.getViewport().setBackground(Color.WHITE);
 
         panel.add(titleLabel, BorderLayout.NORTH);
@@ -283,11 +284,13 @@ public class TablePage extends JPanel {
 
     /**
      * Process incoming measurements from the serial port
+     * 
      * @param measurement The measurement received
      */
     private void processMeasurement(Measurement measurement) {
         SwingUtilities.invokeLater(() -> {
-            // Ignore incoming measurements until a part is explicitly created via "Next Part"
+            // Ignore incoming measurements until a part is explicitly created via "Next
+            // Part"
             if (session.getParts().isEmpty()) {
                 return;
             }
@@ -338,7 +341,8 @@ public class TablePage extends JPanel {
     }
 
     private int getCurrentPartNumber() {
-        // Assumes at least one part exists; caller must check session.getParts().isEmpty() first
+        // Assumes at least one part exists; caller must check
+        // session.getParts().isEmpty() first
         return session.getParts().get(session.getParts().size() - 1).getPartNumber();
     }
 
@@ -361,7 +365,7 @@ public class TablePage extends JPanel {
     }
 
     private void updateTableWithMeasurement(PersistentColorTableModel tableModel,
-                                            int partNumber, double current, double duration) {
+            int partNumber, double current, double duration) {
         // Find the row for this part
         for (int i = 0; i < tableModel.getRowCount(); i++) {
             if (tableModel.getValueAt(i, 0).equals(partNumber)) {
@@ -407,13 +411,23 @@ public class TablePage extends JPanel {
                     }
                 }
 
-                // Update part status in the model and DB (PASS/ERROR based on measurements only)
+                // Update part status in the model and DB (PASS/ERROR based on measurements
+                // only)
                 TestPart part = session.getPartByNumber(partNumber);
                 if (part != null) {
+                    // FIX: Don't overwrite if status is already "Crack" or "Retest"
+                    String currentStatus = part.getStatus();
+                    if ("Crack".equalsIgnoreCase(currentStatus) || "Retest".equalsIgnoreCase(currentStatus)) {
+                        return;
+                    }
+
                     String st = hasRedValue ? "ERROR" : "PASS";
                     part.setStatus(st);
                     if (part.getId() != null) {
-                        try { new com.magpi.db.SessionPartDao().updateStatus(part.getId(), st); } catch (Exception ignored) {}
+                        try {
+                            new com.magpi.db.SessionPartDao().updateStatus(part.getId(), st);
+                        } catch (Exception ignored) {
+                        }
                     }
                 }
 
@@ -423,12 +437,11 @@ public class TablePage extends JPanel {
     }
 
     private void addNewPart() {
-
         // Determine current part and evaluate status before moving on
         if (!session.getParts().isEmpty()) {
             int currentPartNumber = getCurrentPartNumber();
             boolean hasRed = hasAnyRedForPart(headshotTableModel, currentPartNumber) ||
-                             hasAnyRedForPart(coilshotTableModel, currentPartNumber);
+                    hasAnyRedForPart(coilshotTableModel, currentPartNumber);
 
             if (hasRed) {
                 // Any red cell -> mark status as Error with RED background
@@ -440,12 +453,15 @@ public class TablePage extends JPanel {
                 if (part != null) {
                     part.setStatus("ERROR");
                     if (part.getId() != null) {
-                        try { new com.magpi.db.SessionPartDao().updateStatus(part.getId(), "ERROR"); } catch (Exception ignored) {}
+                        try {
+                            new com.magpi.db.SessionPartDao().updateStatus(part.getId(), "ERROR");
+                        } catch (Exception ignored) {
+                        }
                     }
                 }
 
                 // Show popup with only a Retest option
-                Object[] options = {"Retest"};
+                Object[] options = { "Retest" };
                 int choice = JOptionPane.showOptionDialog(
                         this,
                         "Red values detected for Part #" + currentPartNumber + ". Retest?",
@@ -454,10 +470,20 @@ public class TablePage extends JPanel {
                         JOptionPane.WARNING_MESSAGE,
                         null,
                         options,
-                        options[0]
-                );
+                        options[0]);
 
                 if (choice == 0) { // Retest
+                    // FIX: Save "Retest" status to DB for the current part (Red case)
+                    if (part != null) {
+                        part.setStatus("Retest");
+                        if (part.getId() != null) {
+                            try {
+                                new com.magpi.db.SessionPartDao().updateStatus(part.getId(), "Retest");
+                            } catch (Exception ignored) {
+                            }
+                        }
+                    }
+
                     TestPart newRecheckPart = new TestPart(currentPartNumber, session.getPartDescription());
                     newRecheckPart.setRecheckCount(countRechecksFor(currentPartNumber) + 1);
                     session.addPart(newRecheckPart);
@@ -468,7 +494,7 @@ public class TablePage extends JPanel {
                 }
             } else {
                 // All green - ask crack detected, with additional Retest option
-                Object[] options = {"Yes", "No", "Retest"};
+                Object[] options = { "Yes", "No", "Retest" };
                 int crackOption = JOptionPane.showOptionDialog(
                         this,
                         "Crack detected on Part #" + currentPartNumber + "?",
@@ -477,8 +503,7 @@ public class TablePage extends JPanel {
                         JOptionPane.QUESTION_MESSAGE,
                         null,
                         options,
-                        options[1]
-                );
+                        options[1]);
 
                 TestPart part = session.getPartByNumber(currentPartNumber);
 
@@ -493,14 +518,16 @@ public class TablePage extends JPanel {
 
                     // Update underlying part status and DB (ERROR/PASS + crack flag)
                     if (part != null) {
-                        String st = cracksFound ? "ERROR" : "PASS";
+                        // FIX: Save "Crack" status directly if cracks found, otherwise "Pass"
+                        String st = cracksFound ? "Crack" : "Pass";
                         part.setStatus(st);
                         if (part.getId() != null) {
                             try {
                                 com.magpi.db.SessionPartDao dao = new com.magpi.db.SessionPartDao();
                                 dao.updateStatus(part.getId(), st);
                                 dao.updateCrackDetected(part.getId(), cracksFound);
-                            } catch (Exception ignored) {}
+                            } catch (Exception ignored) {
+                            }
                         }
                     }
 
@@ -511,18 +538,19 @@ public class TablePage extends JPanel {
                                 "Capture crack image for Part #" + currentPartNumber + " now?",
                                 "Capture Crack Image",
                                 JOptionPane.YES_NO_OPTION,
-                                JOptionPane.QUESTION_MESSAGE
-                        );
+                                JOptionPane.QUESTION_MESSAGE);
 
                         if (captureChoice == JOptionPane.YES_OPTION) {
                             java.awt.Window owner = javax.swing.SwingUtilities.getWindowAncestor(this);
-                            String imagePath = com.magpi.ui.CrackImageCaptureDialog.captureForPart(owner, currentPartNumber);
+                            String imagePath = com.magpi.ui.CrackImageCaptureDialog.captureForPart(owner,
+                                    currentPartNumber);
                             if (imagePath != null && !imagePath.trim().isEmpty()) {
                                 part.setCrackImagePath(imagePath);
                                 if (part.getId() != null) {
                                     try {
                                         new com.magpi.db.SessionPartDao().updateCrackImagePath(part.getId(), imagePath);
-                                    } catch (Exception ignored) {}
+                                    } catch (Exception ignored) {
+                                    }
                                 }
                             }
                         }
@@ -532,7 +560,19 @@ public class TablePage extends JPanel {
                     setStatusText(headshotTableModel, currentPartNumber, "Retest");
                     setStatusText(coilshotTableModel, currentPartNumber, "Retest");
 
-                    // Create a new row for the same part number, with a recheck suffix (e.g. 124-1, 124-2)
+                    // FIX: Save "Retest" status to DB for the current part
+                    if (part != null) {
+                        part.setStatus("Retest");
+                        if (part.getId() != null) {
+                            try {
+                                new com.magpi.db.SessionPartDao().updateStatus(part.getId(), "Retest");
+                            } catch (Exception ignored) {
+                            }
+                        }
+                    }
+
+                    // Create a new row for the same part number, with a recheck suffix (e.g. 124-1,
+                    // 124-2)
                     TestPart retestPart = new TestPart(currentPartNumber, session.getPartDescription());
                     retestPart.setRecheckCount(countRechecksFor(currentPartNumber) + 1);
                     session.addPart(retestPart);
@@ -570,12 +610,14 @@ public class TablePage extends JPanel {
                     continue;
                 }
 
-                // Check if part number/description already exists in history (any previous session)
+                // Check if part number/description already exists in history (any previous
+                // session)
                 try {
                     com.magpi.db.SessionPartDao dao = new com.magpi.db.SessionPartDao();
                     if (dao.existsPartNumberForDescription(partNumber, session.getPartDescription())) {
                         JOptionPane.showMessageDialog(this,
-                                "Part number " + partNumber + " for part '" + session.getPartDescription() + "' already exists in history.",
+                                "Part number " + partNumber + " for part '" + session.getPartDescription()
+                                        + "' already exists in history.",
                                 "Duplicate Part in History",
                                 JOptionPane.WARNING_MESSAGE);
                         // Re-prompt
@@ -630,7 +672,8 @@ public class TablePage extends JPanel {
     }
 
     /**
-     * Updates the status text with crack information while preserving existing color.
+     * Updates the status text with crack information while preserving existing
+     * color.
      * Searches from bottom so that when there are retests (e.g., 4, 4-1, 4-2),
      * the latest row for that base part number is updated.
      */
@@ -644,7 +687,7 @@ public class TablePage extends JPanel {
                 String statusText = cracksFound ? "Crack" : "Pass";
                 tableModel.setValueAt(statusText, i, statusCol);
 
-                // If there is no color yet (e.g. called at endSession), set a sensible default
+                // If there is no color yet (e.g. called at endTest), set a sensible default
                 if (tableModel.getCellColor(i, statusCol) == null) {
                     tableModel.setCellColor(i, statusCol, cracksFound ? Color.RED : Color.GREEN);
                 }
@@ -652,23 +695,6 @@ public class TablePage extends JPanel {
             }
         }
     }
-
-    // Video capture feature temporarily disabled; keeping method commented for future use
-//    private void openVideoStream() {
-//        // Get the current part number
-//        int currentPartNumber = getCurrentPartNumber();
-//
-//        // Create video stream with current part number
-//        VLCJVideoStream videoStream = new VLCJVideoStream(currentPartNumber);
-//        videoStream.show();
-//
-//        // Notify user
-//        JOptionPane.showMessageDialog(this,
-//                "Recording video for Part #" + currentPartNumber + "\n" +
-//                        "Videos will be saved in: " + VLCJVideoStream.saveLocation,
-//                "Video Recording",
-//                JOptionPane.INFORMATION_MESSAGE);
-//    }
 
     private void updateParameters() {
         // Use thresholds already stored in the session (set from LoginPage)
@@ -689,63 +715,90 @@ public class TablePage extends JPanel {
                 new CustomCellRenderer(session.getCoilShotThreshold(), coilshotTableModel));
     }
 
-    private void endSession() {
+    private void endTest() {
         // Only ask about cracks for the last part if it exists
         if (!session.getParts().isEmpty()) {
             // Get the last part (this will be the latest retest if any exist)
             TestPart lastPart = session.getParts().get(session.getParts().size() - 1);
 
-            // Only ask if the part status doesn't already include crack information
-            if (!lastPart.getStatus().contains("Crack")) {
+            // FIX: Don't overwrite if status is already "Retest" or "Crack"
+            String currentStatus = lastPart.getStatus();
+            if (!"Retest".equalsIgnoreCase(currentStatus) && !currentStatus.contains("Crack")) {
                 int partNumber = lastPart.getPartNumber();
-                int recheckCount = lastPart.getRecheckCount();
-                String partLabel = (recheckCount > 0)
-                        ? (partNumber + "-" + recheckCount)
-                        : String.valueOf(partNumber);
 
-                // Ask if cracks were found
-                int crackOption = JOptionPane.showConfirmDialog(
-                        this,
-                        "Were any cracks found on Part #" + partLabel + "?",
-                        "Crack Status",
-                        JOptionPane.YES_NO_OPTION,
-                        JOptionPane.QUESTION_MESSAGE
-                );
+                // NEW REQUIREMENT: Check for red cells first
+                boolean hasRed = hasAnyRedForPart(headshotTableModel, partNumber) ||
+                        hasAnyRedForPart(coilshotTableModel, partNumber);
 
-                // Update the status cell with the crack information
-                boolean cracksFound = (crackOption == JOptionPane.YES_OPTION);
-                updateStatusWithCrackInfo(headshotTableModel, partNumber, cracksFound);
-                updateStatusWithCrackInfo(coilshotTableModel, partNumber, cracksFound);
+                if (hasRed) {
+                    // If clicked when any cell is red, don't ask for crack found, just put Error
+                    String st = "ERROR";
+                    lastPart.setStatus(st);
 
-                // Optional crack image capture when ending session and cracks were found
-                if (cracksFound) {
-                    int captureChoice = JOptionPane.showConfirmDialog(
+                    // Update UI text to "Error" so it transfers to History correctly
+                    setStatusText(headshotTableModel, partNumber, "Error");
+                    setStatusText(coilshotTableModel, partNumber, "Error");
+
+                    if (lastPart.getId() != null) {
+                        try {
+                            new com.magpi.db.SessionPartDao().updateStatus(lastPart.getId(), st);
+                        } catch (Exception ignored) {
+                        }
+                    }
+                } else {
+                    // No red cells: Ask about cracks (Original Logic)
+                    int recheckCount = lastPart.getRecheckCount();
+                    String partLabel = (recheckCount > 0)
+                            ? (partNumber + "-" + recheckCount)
+                            : String.valueOf(partNumber);
+
+                    // Ask if cracks were found
+                    int crackOption = JOptionPane.showConfirmDialog(
                             this,
-                            "Capture crack image for Part #" + partLabel + " now?",
-                            "Capture Crack Image",
+                            "Were any cracks found on Part #" + partLabel + "?",
+                            "Crack Status",
                             JOptionPane.YES_NO_OPTION,
-                            JOptionPane.QUESTION_MESSAGE
-                    );
+                            JOptionPane.QUESTION_MESSAGE);
 
-                    if (captureChoice == JOptionPane.YES_OPTION) {
-                        java.awt.Window owner = javax.swing.SwingUtilities.getWindowAncestor(this);
-                        String imagePath = com.magpi.ui.CrackImageCaptureDialog.captureForPart(owner, partNumber);
-                        if (imagePath != null && !imagePath.trim().isEmpty()) {
-                            lastPart.setCrackImagePath(imagePath);
-                            if (lastPart.getId() != null) {
-                                try {
-                                    new com.magpi.db.SessionPartDao().updateCrackImagePath(lastPart.getId(), imagePath);
-                                } catch (Exception ignored) {}
+                    // Update the status cell with the crack information
+                    boolean cracksFound = (crackOption == JOptionPane.YES_OPTION);
+                    updateStatusWithCrackInfo(headshotTableModel, partNumber, cracksFound);
+                    updateStatusWithCrackInfo(coilshotTableModel, partNumber, cracksFound);
+
+                    // Optional crack image capture when ending session and cracks were found
+                    if (cracksFound) {
+                        int captureChoice = JOptionPane.showConfirmDialog(
+                                this,
+                                "Capture crack image for Part #" + partLabel + " now?",
+                                "Capture Crack Image",
+                                JOptionPane.YES_NO_OPTION,
+                                JOptionPane.QUESTION_MESSAGE);
+
+                        if (captureChoice == JOptionPane.YES_OPTION) {
+                            java.awt.Window owner = javax.swing.SwingUtilities.getWindowAncestor(this);
+                            String imagePath = com.magpi.ui.CrackImageCaptureDialog.captureForPart(owner, partNumber);
+                            if (imagePath != null && !imagePath.trim().isEmpty()) {
+                                lastPart.setCrackImagePath(imagePath);
+                                if (lastPart.getId() != null) {
+                                    try {
+                                        new com.magpi.db.SessionPartDao().updateCrackImagePath(lastPart.getId(),
+                                                imagePath);
+                                    } catch (Exception ignored) {
+                                    }
+                                }
                             }
                         }
                     }
-                }
 
-                // Update part status in the model and DB
-                String st = cracksFound ? "ERROR" : "PASS";
-                lastPart.setStatus(st);
-                if (lastPart.getId() != null) {
-                    try { new com.magpi.db.SessionPartDao().updateStatus(lastPart.getId(), st); } catch (Exception ignored) {}
+                    // Update part status in the model and DB
+                    String st = cracksFound ? "Crack" : (hasRed ? "ERROR" : "Pass");
+                    lastPart.setStatus(st);
+                    if (lastPart.getId() != null) {
+                        try {
+                            new com.magpi.db.SessionPartDao().updateStatus(lastPart.getId(), st);
+                        } catch (Exception ignored) {
+                        }
+                    }
                 }
             }
         }
@@ -753,16 +806,18 @@ public class TablePage extends JPanel {
         // Transfer all data to history before ending session
         transferCurrentPartsToHistory();
 
-        session.endSession();
+        session.endTest();
         endTimeLabel.setText("End Time: " +
                 session.getEndTime().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
         // Persist session end time
         try {
             if (session.getId() != null) {
-                String ts = session.getEndTime().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                String ts = session.getEndTime()
+                        .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
                 new com.magpi.db.SessionDao().setEndTime(session.getId(), ts);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
 
         JOptionPane.showMessageDialog(this,
                 "Session ended. All data has been transferred to the history page.\nYou can now view the history and export reports.",
@@ -781,21 +836,21 @@ public class TablePage extends JPanel {
         transferTableToHistory(coilshotTableModel, session.getHistoryPanel().getCoilshotHistoryTableModel());
 
         // Add metadata for each part from the current session
-        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter
+                .ofPattern("yyyy-MM-dd HH:mm:ss");
         for (com.magpi.model.TestPart part : session.getParts()) {
             session.getHistoryPanel().addPartMetadata(
-                session.getOperatorName(),
-                session.getSupervisorId(),
-                part.getTestTime().format(formatter),
-                session.getCompanyName(),
-                session.getMachineId(),
-                session.getPartDescription(),
-                session.getHeadShotThreshold(),
-                session.getCoilShotThreshold(),
-                session.getStartTime().format(formatter),
-                session.getEndTime() != null ? session.getEndTime().format(formatter) : "",
-                part.getCrackImagePath()
-            );
+                    session.getOperatorName(),
+                    session.getSupervisorId(),
+                    part.getTestTime().format(formatter),
+                    session.getCompanyName(),
+                    session.getMachineId(),
+                    session.getPartDescription(),
+                    session.getHeadShotThreshold(),
+                    session.getCoilShotThreshold(),
+                    session.getStartTime().format(formatter),
+                    session.getEndTime() != null ? session.getEndTime().format(formatter) : "",
+                    part.getCrackImagePath());
         }
 
         // Rebuild the visible Part Test History table from the updated hidden tables
@@ -806,12 +861,12 @@ public class TablePage extends JPanel {
      * Transfer all rows from source table to history table
      */
     private void transferTableToHistory(PersistentColorTableModel sourceModel,
-                                        PersistentColorTableModel historyModel) {
+            PersistentColorTableModel historyModel) {
         // Process each row in the source table
         for (int sourceRow = 0; sourceRow < sourceModel.getRowCount(); sourceRow++) {
             // Get the part number for this row (support PartIdCell)
             Object partObj = sourceModel.getValueAt(sourceRow, 0);
-            
+
             // Skip rows that don't have any data
             boolean hasData = false;
             for (int col = 1; col < sourceModel.getColumnCount() - 1; col += 2) {
@@ -836,7 +891,7 @@ public class TablePage extends JPanel {
      * Updates values in an existing history row
      */
     private void updateHistoryRow(PersistentColorTableModel sourceModel, int sourceRow,
-                                  PersistentColorTableModel historyModel, int historyRow) {
+            PersistentColorTableModel historyModel, int historyRow) {
         int srcStatusCol = getStatusColumnIndex(sourceModel);
         int histStatusCol = historyModel.getColumnCount() - 3;
         int histCrackCol = historyModel.getColumnCount() - 2;
@@ -845,21 +900,24 @@ public class TablePage extends JPanel {
         // Part number
         historyModel.setValueAt(sourceModel.getValueAt(sourceRow, 0), historyRow, 0);
         Color c0 = sourceModel.getCellColor(sourceRow, 0);
-        if (c0 != null) historyModel.setCellColor(historyRow, 0, c0);
+        if (c0 != null)
+            historyModel.setCellColor(historyRow, 0, c0);
 
         // Measurements
         for (int col = 1; col < srcStatusCol; col++) {
             Object v = sourceModel.getValueAt(sourceRow, col);
             historyModel.setValueAt(v, historyRow, col);
             Color cc = sourceModel.getCellColor(sourceRow, col);
-            if (cc != null) historyModel.setCellColor(historyRow, col, cc);
+            if (cc != null)
+                historyModel.setCellColor(historyRow, col, cc);
         }
 
         // Status
         Object st = sourceModel.getValueAt(sourceRow, srcStatusCol);
         historyModel.setValueAt(st, historyRow, histStatusCol);
         Color sc = sourceModel.getCellColor(sourceRow, srcStatusCol);
-        if (sc != null) historyModel.setCellColor(historyRow, histStatusCol, sc);
+        if (sc != null)
+            historyModel.setCellColor(historyRow, histStatusCol, sc);
 
         // Crack and Details defaults
         historyModel.setValueAt("", historyRow, histCrackCol);
@@ -871,13 +929,14 @@ public class TablePage extends JPanel {
 
     /**
      * Copies a row from a source table to a history table
-     * @param sourceModel The source table model
-     * @param sourceRow The row to copy
+     * 
+     * @param sourceModel  The source table model
+     * @param sourceRow    The row to copy
      * @param historyModel The destination table model
      */
     private void copyRowToHistoryTable(PersistentColorTableModel sourceModel,
-                                       int sourceRow,
-                                       PersistentColorTableModel historyModel) {
+            int sourceRow,
+            PersistentColorTableModel historyModel) {
         int srcStatusCol = getStatusColumnIndex(sourceModel);
         int histStatusCol = historyModel.getColumnCount() - 3;
         int histCrackCol = historyModel.getColumnCount() - 2;
@@ -903,15 +962,18 @@ public class TablePage extends JPanel {
         int historyRow = historyModel.getRowCount() - 1;
         // Part number color
         Color c0 = sourceModel.getCellColor(sourceRow, 0);
-        if (c0 != null) historyModel.setCellColor(historyRow, 0, c0);
+        if (c0 != null)
+            historyModel.setCellColor(historyRow, 0, c0);
         // Measurement colors
         for (int col = 1; col < srcStatusCol; col++) {
             Color cc = sourceModel.getCellColor(sourceRow, col);
-            if (cc != null) historyModel.setCellColor(historyRow, col, cc);
+            if (cc != null)
+                historyModel.setCellColor(historyRow, col, cc);
         }
         // Status color
         Color sc = sourceModel.getCellColor(sourceRow, srcStatusCol);
-        if (sc != null) historyModel.setCellColor(historyRow, histStatusCol, sc);
+        if (sc != null)
+            historyModel.setCellColor(historyRow, histStatusCol, sc);
     }
 
     private void styleTable(JTable table) {
@@ -922,8 +984,7 @@ public class TablePage extends JPanel {
         table.setGridColor(new Color(120, 120, 120)); // Darker grid lines
         table.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(100, 100, 100), 2),
-                BorderFactory.createEmptyBorder(1, 1, 1, 1)
-        ));
+                BorderFactory.createEmptyBorder(1, 1, 1, 1)));
 
         // Style the header
         table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
@@ -931,8 +992,7 @@ public class TablePage extends JPanel {
         table.getTableHeader().setForeground(new Color(44, 62, 80));
         table.getTableHeader().setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(100, 100, 100), 2),
-                BorderFactory.createEmptyBorder(5, 5, 5, 5)
-        ));
+                BorderFactory.createEmptyBorder(5, 5, 5, 5)));
 
         // Set column widths
         table.getColumnModel().getColumn(0).setPreferredWidth(80); // Part No
@@ -942,7 +1002,8 @@ public class TablePage extends JPanel {
             // Time columns
             table.getColumnModel().getColumn(i + 1).setPreferredWidth(80);
         }
-        table.getColumnModel().getColumn(getStatusColumnIndex((PersistentColorTableModel) table.getModel())).setPreferredWidth(100); // Status
+        table.getColumnModel().getColumn(getStatusColumnIndex((PersistentColorTableModel) table.getModel()))
+                .setPreferredWidth(100); // Status
 
         // Prevent column resizing and reordering
         table.getTableHeader().setResizingAllowed(false);
@@ -952,13 +1013,14 @@ public class TablePage extends JPanel {
         table.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellRenderer() {
             @Override
             public java.awt.Component getTableCellRendererComponent(JTable table, Object value,
-                                                                    boolean isSelected, boolean hasFocus, int row, int column) {
+                    boolean isSelected, boolean hasFocus, int row, int column) {
                 JComponent c = (JComponent) super.getTableCellRendererComponent(table, value,
                         isSelected, hasFocus, row, column);
 
                 // Add border to each cell
                 c.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createMatteBorder(0, 0, 1, 1, new Color(180, 180, 180)), // Bottom and right borders
+                        BorderFactory.createMatteBorder(0, 0, 1, 1, new Color(180, 180, 180)), // Bottom and right
+                                                                                               // borders
                         BorderFactory.createEmptyBorder(2, 5, 2, 5) // Padding
                 ));
 
@@ -966,8 +1028,7 @@ public class TablePage extends JPanel {
                 if (column == 0) {
                     c.setBorder(BorderFactory.createCompoundBorder(
                             BorderFactory.createMatteBorder(0, 1, 1, 1, new Color(180, 180, 180)),
-                            BorderFactory.createEmptyBorder(2, 5, 2, 5)
-                    ));
+                            BorderFactory.createEmptyBorder(2, 5, 2, 5)));
                 }
 
                 // Format current values (odd columns)
@@ -1011,13 +1072,15 @@ public class TablePage extends JPanel {
     }
 
     private boolean hasAnyRedForPart(PersistentColorTableModel model, int partNumber) {
-        // Search from bottom so we inspect the latest row for this part (e.g., 3-2 over 3-1 over 3)
+        // Search from bottom so we inspect the latest row for this part (e.g., 3-2 over
+        // 3-1 over 3)
         for (int i = model.getRowCount() - 1; i >= 0; i--) {
             if (model.getValueAt(i, 0).equals(partNumber)) {
                 int statusCol = getStatusColumnIndex(model);
                 for (int col = 1; col < statusCol; col += 2) {
                     Color c = model.getCellColor(i, col);
-                    if (Color.RED.equals(c)) return true;
+                    if (Color.RED.equals(c))
+                        return true;
                 }
                 return false;
             }
@@ -1026,8 +1089,10 @@ public class TablePage extends JPanel {
     }
 
     /**
-     * Helper to update only the status text for a given part, preserving background color.
-     * Searches from bottom so that for repeated retests of the same base part number
+     * Helper to update only the status text for a given part, preserving background
+     * color.
+     * Searches from bottom so that for repeated retests of the same base part
+     * number
      * (e.g., 3, 3-1, 3-2), the latest row gets updated.
      */
     private void setStatusText(PersistentColorTableModel model, int partNumber, String text) {

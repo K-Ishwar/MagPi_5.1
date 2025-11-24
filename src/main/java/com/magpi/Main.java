@@ -26,11 +26,11 @@ public class Main {
     private JButton logoutButton;
 
     // Modern UI Colors
-    private static final Color PRIMARY_COLOR = new Color(25, 118, 210);   // Modern blue
-    private static final Color ACCENT_COLOR = new Color(255, 152, 0);     // Orange accent
+    private static final Color PRIMARY_COLOR = new Color(25, 118, 210); // Modern blue
+    private static final Color ACCENT_COLOR = new Color(255, 152, 0); // Orange accent
     private static final Color BACKGROUND_COLOR = new Color(245, 245, 245); // Light gray background
-    private static final Color TEXT_COLOR = new Color(33, 33, 33);        // Dark gray for text
-    private static final Color MENU_COLOR = new Color(38, 50, 56);        // Dark menu bar color
+    private static final Color TEXT_COLOR = new Color(33, 33, 33); // Dark gray for text
+    private static final Color MENU_COLOR = new Color(38, 50, 56); // Dark menu bar color
 
     /**
      * Creates and initializes the application
@@ -140,6 +140,7 @@ public class Main {
             e.printStackTrace();
         }
     }
+
     private void initializeFrame() {
         frame = new JFrame("MAG-Pi: Magnetic Particle Inspection System");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -180,13 +181,13 @@ public class Main {
 
             @Override
             protected void paintTab(Graphics g, int tabPlacement, Rectangle[] rects, int tabIndex,
-                                    Rectangle iconRect, Rectangle textRect) {
+                    Rectangle iconRect, Rectangle textRect) {
                 // Do nothing to hide the tabs
             }
 
             @Override
             protected void paintTabBorder(Graphics g, int tabPlacement, int tabIndex,
-                                          int x, int y, int w, int h, boolean isSelected) {
+                    int x, int y, int w, int h, boolean isSelected) {
                 // Do nothing to hide the tab borders
             }
 
@@ -245,12 +246,12 @@ public class Main {
             // Scale the logo to an appropriate size for the menubar
             ImageIcon logoIcon = new ImageIcon(logoImage.getScaledInstance(32, 32, Image.SCALE_SMOOTH));
             logoLabel = new JLabel("MAG-Pi", logoIcon, JLabel.CENTER);
-            logoLabel.setForeground(Color.WHITE);  // Changed to white for visibility
+            logoLabel.setForeground(Color.WHITE); // Changed to white for visibility
             logoLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
         } else {
             // Fallback to text if image can't be loaded
             logoLabel = new JLabel("MAG-Pi");
-            logoLabel.setForeground(Color.WHITE);  // Changed to white for visibility
+            logoLabel.setForeground(Color.WHITE); // Changed to white for visibility
             logoLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
         }
 
@@ -293,6 +294,7 @@ public class Main {
         menuBar.add(buttonPanel, BorderLayout.EAST);
         frame.setJMenuBar(menuBar);
     }
+
     /**
      * Creates a styled button for the menu bar
      */
@@ -319,6 +321,7 @@ public class Main {
 
         return button;
     }
+
     private void handleLogin() {
         // Update session with login info
         if (!loginPage.updateSessionWithLoginInfo(session)) {
@@ -440,6 +443,7 @@ public class Main {
 
     /**
      * Main method to start the application
+     * 
      * @param args Command line arguments
      */
     public static void main(String[] args) {

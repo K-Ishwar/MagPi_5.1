@@ -141,11 +141,6 @@ public class TablePage extends JPanel {
         JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonsPanel.setOpaque(false);
 
-       // JButton rbutton = new JButton("rechacking");
-        //styleButton(rbutton, new Color(41, 204, 185), Color.WHITE);
-        //addPartButton.addActionListener(e -> addNewPart());
-       // rbutton.setPreferredSize(new Dimension(100, 40));
-
         // Next Part button with modern styling
         JButton addPartButton = new JButton("Next Part");
         styleButton(addPartButton, new Color(41, 128, 185), Color.WHITE);

@@ -5,6 +5,7 @@ import com.magpi.util.PdfExporter;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import com.magpi.ui.table.PersistentColorTableModel;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -15,20 +16,20 @@ import java.io.File;
  */
 public class PartDetailsDialog extends JDialog {
     public PartDetailsDialog(Window owner, String title,
-                             JTable sourceHeadshotTable, int headRow,
-                             JTable sourceCoilshotTable, int coilRow,
-                             java.util.Map<String, String> meta) {
+            JTable sourceHeadshotTable, int headRow,
+            JTable sourceCoilshotTable, int coilRow,
+            java.util.Map<String, String> meta) {
         super(owner, title, ModalityType.APPLICATION_MODAL);
         setSize(900, 600);
         setLocationRelativeTo(owner);
-        setLayout(new BorderLayout(10,10));
+        setLayout(new BorderLayout(10, 10));
 
-        JPanel metaPanel = new JPanel(new GridLayout(0,2,8,8));
+        JPanel metaPanel = new JPanel(new GridLayout(0, 2, 8, 8));
         metaPanel.setBorder(BorderFactory.createTitledBorder("Part Metadata"));
-        String[] keys = new String[]{
-                "Company Name","Machine ID","Part Description","Part No",
-                "Operator","Supervisor","Start Time","End Time",
-                "Headshot Threshold","Coilshot Threshold","Status","Crack Status"};
+        String[] keys = new String[] {
+                "Company Name", "Machine ID", "Part Description", "Part No",
+                "Operator", "Supervisor", "Start Time", "End Time",
+                "Headshot Threshold", "Coilshot Threshold", "DeMag Status", "Crack Status" };
         for (String k : keys) {
             if (meta.containsKey(k) && meta.get(k) != null && !meta.get(k).trim().isEmpty()) {
                 metaPanel.add(new JLabel(k + ":"));
@@ -37,9 +38,9 @@ public class PartDetailsDialog extends JDialog {
         }
         add(metaPanel, BorderLayout.NORTH);
 
-        JPanel centerPanel = new JPanel(new BorderLayout(10,10));
+        JPanel centerPanel = new JPanel(new BorderLayout(10, 10));
 
-        JPanel tables = new JPanel(new GridLayout(1,2,10,10));
+        JPanel tables = new JPanel(new GridLayout(1, 2, 10, 10));
         JTable headCopy = buildFilteredSingleRowTable(sourceHeadshotTable, headRow);
         JTable coilCopy = buildFilteredSingleRowTable(sourceCoilshotTable, coilRow);
         tables.add(wrapWithTitled(headCopy, "Headshot Measurements"));
@@ -114,11 +115,7 @@ public class PartDetailsDialog extends JDialog {
                 }
             }
         }
-        // Status
-        if (statusCol >= 0) {
-            columns.add(src.getColumnName(statusCol));
-            values.add(src.getValueAt(row, statusCol));
-        }
+        // Do NOT include Status column (it's in metadata section)
         // Crack if present (history only)
         if (crackCol >= 0) {
             Object crackVal = src.getValueAt(row, crackCol);
@@ -129,8 +126,52 @@ public class PartDetailsDialog extends JDialog {
         }
         // Do NOT include Details column
 
-        DefaultTableModel model = new DefaultTableModel(columns.toArray(new String[0]), 0);
-        model.addRow(values.toArray(new Object[0]));
+        // Do NOT include Details column
+
+        PersistentColorTableModel model = new PersistentColorTableModel(columns.toArray(new String[0]), 0);
+        model.addRow(values.toArray());
+
+        // Copy colors from source table
+        if (src.getModel() instanceof PersistentColorTableModel) {
+            PersistentColorTableModel srcModel = (PersistentColorTableModel) src.getModel();
+            int newColIndex = 0;
+
+            // Part No (col 0)
+            Color c0 = srcModel.getCellColor(row, 0);
+            if (c0 != null)
+                model.setCellColor(0, newColIndex, c0);
+            newColIndex++;
+
+            // Measurements
+            for (int c = 1; c >= 1 && c < (statusCol >= 0 ? statusCol : src.getColumnCount()); c += 2) {
+                Object cur = src.getValueAt(row, c);
+                if (cur != null && !cur.toString().trim().isEmpty()) {
+                    Color c1 = srcModel.getCellColor(row, c);
+                    if (c1 != null)
+                        model.setCellColor(0, newColIndex, c1);
+                    newColIndex++;
+
+                    if (c + 1 < src.getColumnCount()) {
+                        Color c2 = srcModel.getCellColor(row, c + 1);
+                        if (c2 != null)
+                            model.setCellColor(0, newColIndex, c2);
+                        newColIndex++;
+                    }
+                }
+            }
+
+            // Crack
+            if (crackCol >= 0) {
+                Object crackVal = src.getValueAt(row, crackCol);
+                if (crackVal != null && !crackVal.toString().trim().isEmpty()) {
+                    Color cC = srcModel.getCellColor(row, crackCol);
+                    if (cC != null)
+                        model.setCellColor(0, newColIndex, cC);
+                    newColIndex++;
+                }
+            }
+        }
+
         JTable table = new JTable(model);
         table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
         return table;
@@ -138,14 +179,15 @@ public class PartDetailsDialog extends JDialog {
 
     private int findColumnIndex(JTable table, String name) {
         for (int i = 0; i < table.getColumnCount(); i++) {
-            if (name.equalsIgnoreCase(table.getColumnName(i))) return i;
+            if (name.equalsIgnoreCase(table.getColumnName(i)))
+                return i;
         }
         return -1;
     }
 
     public static void show(Window owner,
-                            JTable headTable, JTable coilTable, int headRow, int coilRow,
-                            java.util.Map<String,String> meta, String partLabel) {
+            JTable headTable, JTable coilTable, int headRow, int coilRow,
+            java.util.Map<String, String> meta, String partLabel) {
         meta.put("Part No", partLabel);
         PartDetailsDialog dlg = new PartDetailsDialog(owner,
                 "Part Details - " + partLabel, headTable, headRow, coilTable, coilRow, meta);

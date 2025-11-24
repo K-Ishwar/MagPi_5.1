@@ -16,7 +16,8 @@ public class Database {
     private static Database instance;
     private Connection connection;
 
-    private Database() {}
+    private Database() {
+    }
 
     public static synchronized Database getInstance() {
         if (instance == null) {
@@ -125,8 +126,18 @@ public class Database {
                     ")");
 
             // Attempt to add crack_detected and crack_image_path to existing DBs
-            try { st.executeUpdate("ALTER TABLE session_parts ADD COLUMN crack_detected INTEGER"); } catch (Exception ignore) {}
-            try { st.executeUpdate("ALTER TABLE session_parts ADD COLUMN crack_image_path TEXT"); } catch (Exception ignore) {}
+            try {
+                st.executeUpdate("ALTER TABLE session_parts ADD COLUMN crack_detected INTEGER");
+            } catch (Exception ignore) {
+            }
+            try {
+                st.executeUpdate("ALTER TABLE session_parts ADD COLUMN crack_image_path TEXT");
+            } catch (Exception ignore) {
+            }
+            try {
+                st.executeUpdate("ALTER TABLE session_parts ADD COLUMN demag_status TEXT");
+            } catch (Exception ignore) {
+            }
             st.executeUpdate("CREATE INDEX IF NOT EXISTS idx_session_parts_sess ON session_parts(session_id)");
 
             // Individual measurements for a session part

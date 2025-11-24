@@ -54,7 +54,7 @@ public class TablePage extends JPanel {
         String[] columnNames = {
                 "Part No", "Current 1", "T 1", "Current 2", "T 2",
                 "Current 3", "T 3", "Current 4", "T 4",
-                "Current 5", "T 5", "Status"
+                "Current 5", "T 5", "DeMag", "Status"
         };
 
         // Initialize table models
@@ -355,7 +355,11 @@ public class TablePage extends JPanel {
 
         // Clear measurement cells
         for (int i = 1; i < statusCol; i++) {
-            rowData[i] = "";
+            if ("DeMag".equals(tableModel.getColumnName(i))) {
+                rowData[i] = "No";
+            } else {
+                rowData[i] = "";
+            }
         }
 
         // Default status only (live page)
@@ -552,6 +556,33 @@ public class TablePage extends JPanel {
                                     } catch (Exception ignored) {
                                     }
                                 }
+                            }
+                        }
+                    }
+
+                    // DeMag confirmation popup (mandatory)
+                    Object[] demagOptions = { "Done" };
+                    JOptionPane.showOptionDialog(
+                            this,
+                            "Is DeMag Done for Part #" + currentPartNumber + "?",
+                            "DeMag Confirmation",
+                            JOptionPane.DEFAULT_OPTION,
+                            JOptionPane.QUESTION_MESSAGE,
+                            null,
+                            demagOptions,
+                            demagOptions[0]);
+
+                    // Store DeMag confirmation
+                    if (part != null) {
+                        part.setDemagStatus("Done");
+                        // Update table model with DeMag status
+                        setDeMagStatus(headshotTableModel, currentPartNumber, "Done");
+                        setDeMagStatus(coilshotTableModel, currentPartNumber, "Done");
+
+                        if (part.getId() != null) {
+                            try {
+                                new com.magpi.db.SessionPartDao().updateDemagStatus(part.getId(), "Done");
+                            } catch (Exception ignored) {
                             }
                         }
                     }
@@ -790,6 +821,31 @@ public class TablePage extends JPanel {
                         }
                     }
 
+                    // DeMag confirmation popup (mandatory)
+                    Object[] demagOptions = { "Done" };
+                    JOptionPane.showOptionDialog(
+                            this,
+                            "Is DeMag Done for Part #" + partLabel + "?",
+                            "DeMag Confirmation",
+                            JOptionPane.DEFAULT_OPTION,
+                            JOptionPane.QUESTION_MESSAGE,
+                            null,
+                            demagOptions,
+                            demagOptions[0]);
+
+                    // Store DeMag confirmation
+                    lastPart.setDemagStatus("Done");
+                    // Update table model with DeMag status
+                    setDeMagStatus(headshotTableModel, partNumber, "Done");
+                    setDeMagStatus(coilshotTableModel, partNumber, "Done");
+
+                    if (lastPart.getId() != null) {
+                        try {
+                            new com.magpi.db.SessionPartDao().updateDemagStatus(lastPart.getId(), "Done");
+                        } catch (Exception ignored) {
+                        }
+                    }
+
                     // Update part status in the model and DB
                     String st = cracksFound ? "Crack" : (hasRed ? "ERROR" : "Pass");
                     lastPart.setStatus(st);
@@ -850,7 +906,8 @@ public class TablePage extends JPanel {
                     session.getCoilShotThreshold(),
                     session.getStartTime().format(formatter),
                     session.getEndTime() != null ? session.getEndTime().format(formatter) : "",
-                    part.getCrackImagePath());
+                    part.getCrackImagePath(),
+                    part.getDemagStatus());
         }
 
         // Rebuild the visible Part Test History table from the updated hidden tables
@@ -1055,6 +1112,13 @@ public class TablePage extends JPanel {
                 return c;
             }
         });
+
+        // Hide DeMag column from view but keep in model
+        try {
+            table.removeColumn(table.getColumn("DeMag"));
+        } catch (IllegalArgumentException e) {
+            // Column might not exist
+        }
     }
 
     /**
@@ -1100,6 +1164,28 @@ public class TablePage extends JPanel {
             if (model.getValueAt(i, 0).equals(partNumber)) {
                 int statusCol = getStatusColumnIndex(model);
                 model.setValueAt(text, i, statusCol);
+                return;
+            }
+        }
+    }
+
+    private void setDeMagStatus(PersistentColorTableModel model, int partNumber, String status) {
+        for (int i = model.getRowCount() - 1; i >= 0; i--) {
+            if (model.getValueAt(i, 0).equals(partNumber)) {
+                // Find DeMag column index in model
+                int demagCol = -1;
+                for (int c = 0; c < model.getColumnCount(); c++) {
+                    if ("DeMag".equals(model.getColumnName(c))) {
+                        demagCol = c;
+                        break;
+                    }
+                }
+                if (demagCol != -1) {
+                    model.setValueAt(status, i, demagCol);
+                    if ("Done".equalsIgnoreCase(status)) {
+                        model.setCellColor(i, demagCol, Color.GREEN);
+                    }
+                }
                 return;
             }
         }

@@ -46,6 +46,7 @@ public class HistoryPage extends JPanel {
     private java.util.List<Double> headThresholds = new java.util.ArrayList<>();
     private java.util.List<Double> coilThresholds = new java.util.ArrayList<>();
     private java.util.List<String> crackImagePaths = new java.util.ArrayList<>();
+    private java.util.List<String> demagStatuses = new java.util.ArrayList<>();
 
     /**
      * Creates a new history page
@@ -61,7 +62,7 @@ public class HistoryPage extends JPanel {
     private void initializeComponents() {
         // Visible history table: one row per part
         String[] historyColumns = {
-                "Part No", "Headshot", "CoilShot", "Date", "Time", "Operator", "Details"
+                "Part No", "Headshot", "CoilShot", "DeMag", "Part Description", "Date & Time", "Operator", "Details"
         };
         partHistoryTableModel = new PersistentColorTableModel(historyColumns, 0);
         partHistoryTable = new JTable(partHistoryTableModel);
@@ -70,7 +71,7 @@ public class HistoryPage extends JPanel {
         String[] measurementColumns = {
                 "Part No", "Current 1", "T 1", "Current 2", "T 2",
                 "Current 3", "T 3", "Current 4", "T 4",
-                "Current 5", "T 5", "Status", "Crack", "Details"
+                "Current 5", "T 5", "DeMag", "Status", "Crack", "Details"
         };
         headshotHistoryTableModel = new PersistentColorTableModel(measurementColumns, 0);
         coilshotHistoryTableModel = new PersistentColorTableModel(measurementColumns, 0);
@@ -467,7 +468,36 @@ public class HistoryPage extends JPanel {
                         "No Data",
                         JOptionPane.INFORMATION_MESSAGE);
             } else {
-                PdfExporter.exportToPdf(session, filteredHeadTable, filteredCoilTable, this);
+                // Build filter information strings for PDF display
+                String filterDateRange = null;
+                String filterTimeRange = null;
+                String filterOperatorName = null;
+
+                // Only show filter info if NOT exporting today's data (i.e., custom filters
+                // were used)
+                if (!isTodayOnly) {
+                    // Date range
+                    if (!startDate.isEmpty() || !endDate.isEmpty()) {
+                        String start = startDate.isEmpty() ? "Any" : startDate;
+                        String end = endDate.isEmpty() ? "Any" : endDate;
+                        filterDateRange = start + " to " + end;
+                    }
+
+                    // Time range
+                    if (!startTime.isEmpty() || !endTime.isEmpty()) {
+                        String start = startTime.isEmpty() ? "Any" : startTime;
+                        String end = endTime.isEmpty() ? "Any" : endTime;
+                        filterTimeRange = start + " to " + end;
+                    }
+
+                    // Operator filter
+                    if (!operatorFilter.isEmpty()) {
+                        filterOperatorName = operatorFilter;
+                    }
+                }
+
+                PdfExporter.exportToPdf(session, filteredHeadTable, filteredCoilTable, this,
+                        filterDateRange, filterTimeRange, filterOperatorName, startDate, endDate);
             }
 
         } catch (Exception ex) {
@@ -611,19 +641,30 @@ public class HistoryPage extends JPanel {
     private void performSummaryFilteredExport(boolean isTodayOnly, String startDate, String endDate,
             String startTime, String endTime, String operatorFilter) {
         try {
-            // Build filtered Part Test History table
-            String[] summaryColumns = { "Part No", "Headshot", "CoilShot", "Date", "Time", "Operator" };
+            // Build filtered Part Test History table with new structure
+            String[] summaryColumns = { "Part No", "Headshot", "CoilShot", "DeMag", "Part Description", "Date & Time",
+                    "Operator" };
             PersistentColorTableModel filteredSummaryModel = new PersistentColorTableModel(summaryColumns, 0);
 
             String today = java.time.LocalDate.now().toString();
 
             for (int i = 0; i < partHistoryTableModel.getRowCount(); i++) {
                 // Get date/time/operator from visible table
-                String rowDate = String.valueOf(partHistoryTableModel.getValueAt(i, 3)); // Date column
-                String rowTime = String.valueOf(partHistoryTableModel.getValueAt(i, 4)); // Time column
-                String rowOperator = String.valueOf(partHistoryTableModel.getValueAt(i, 5)); // Operator column
+                // New column structure: 0: Part No, 1: Headshot, 2: CoilShot, 3: DeMag,
+                // 4: Part Description, 5: Date & Time, 6: Operator, 7: Details
+                String rowDateTime = String.valueOf(partHistoryTableModel.getValueAt(i, 5)); // Date & Time column
+                                                                                             // (combined)
+                String rowOperator = String.valueOf(partHistoryTableModel.getValueAt(i, 6)); // Operator column
+                String rowPartDescription = String.valueOf(partHistoryTableModel.getValueAt(i, 4)); // Part Description
 
-                String rowDateTimeStr = rowDate + " " + rowTime;
+                // Split date and time for filtering
+                String rowDate = rowDateTime;
+                String rowTime = "";
+                int spaceIdx = rowDateTime.indexOf(' ');
+                if (spaceIdx >= 0) {
+                    rowDate = rowDateTime.substring(0, spaceIdx);
+                    rowTime = rowDateTime.substring(spaceIdx + 1);
+                }
 
                 boolean include = true;
 
@@ -667,13 +708,14 @@ public class HistoryPage extends JPanel {
                     row[0] = partHistoryTableModel.getValueAt(i, 0); // Part No
                     row[1] = partHistoryTableModel.getValueAt(i, 1); // Headshot
                     row[2] = partHistoryTableModel.getValueAt(i, 2); // CoilShot
-                    row[3] = partHistoryTableModel.getValueAt(i, 3); // Date
-                    row[4] = partHistoryTableModel.getValueAt(i, 4); // Time
-                    row[5] = partHistoryTableModel.getValueAt(i, 5); // Operator
+                    row[3] = partHistoryTableModel.getValueAt(i, 3); // DeMag
+                    row[4] = rowPartDescription; // Part Description
+                    row[5] = rowDateTime; // Date & Time (combined)
+                    row[6] = rowOperator; // Operator
 
                     filteredSummaryModel.addRow(row);
 
-                    // Copy colors for Headshot and CoilShot
+                    // Copy colors for Headshot, CoilShot, and DeMag
                     Color headColor = partHistoryTableModel.getCellColor(i, 1);
                     if (headColor != null) {
                         filteredSummaryModel.setCellColor(filteredSummaryModel.getRowCount() - 1, 1, headColor);
@@ -681,6 +723,10 @@ public class HistoryPage extends JPanel {
                     Color coilColor = partHistoryTableModel.getCellColor(i, 2);
                     if (coilColor != null) {
                         filteredSummaryModel.setCellColor(filteredSummaryModel.getRowCount() - 1, 2, coilColor);
+                    }
+                    Color demagColor = partHistoryTableModel.getCellColor(i, 3);
+                    if (demagColor != null) {
+                        filteredSummaryModel.setCellColor(filteredSummaryModel.getRowCount() - 1, 3, demagColor);
                     }
                 }
             }
@@ -845,21 +891,17 @@ public class HistoryPage extends JPanel {
         table.getTableHeader().setBackground(new Color(230, 230, 230));
         table.getTableHeader().setForeground(new Color(44, 62, 80));
 
-        // Column widths: Part, Headshot, CoilShot, Date, Time, [Operator hidden],
-        // Details
-        if (table.getColumnModel().getColumnCount() >= 6) {
-            table.getColumnModel().getColumn(0).setPreferredWidth(80);
-            table.getColumnModel().getColumn(1).setPreferredWidth(80);
-            table.getColumnModel().getColumn(2).setPreferredWidth(80);
-            table.getColumnModel().getColumn(3).setPreferredWidth(120);
-        }
-
-        // Hide Operator column from view but keep it in the model for exports/filters
-        try {
-            int operatorViewIndex = table.getColumnModel().getColumnIndex("Operator");
-            table.removeColumn(table.getColumnModel().getColumn(operatorViewIndex));
-        } catch (IllegalArgumentException ignored) {
-            // Column not found; nothing to hide
+        // Column widths: Part No, Headshot, CoilShot, DeMag, Part Description, Date &
+        // Time, Operator, Details
+        if (table.getColumnModel().getColumnCount() >= 8) {
+            table.getColumnModel().getColumn(0).setPreferredWidth(80); // Part No
+            table.getColumnModel().getColumn(1).setPreferredWidth(80); // Headshot
+            table.getColumnModel().getColumn(2).setPreferredWidth(80); // CoilShot
+            table.getColumnModel().getColumn(3).setPreferredWidth(70); // DeMag
+            table.getColumnModel().getColumn(4).setPreferredWidth(150); // Part Description
+            table.getColumnModel().getColumn(5).setPreferredWidth(140); // Date & Time
+            table.getColumnModel().getColumn(6).setPreferredWidth(100); // Operator
+            table.getColumnModel().getColumn(7).setPreferredWidth(80); // Details
         }
 
         table.getTableHeader().setResizingAllowed(false);
@@ -882,9 +924,6 @@ public class HistoryPage extends JPanel {
         }
     }
 
-    /**
-     * Styles a button with the given background and foreground colors
-     */
     private void styleButton(JButton button, Color background, Color foreground) {
         button.setBackground(background);
         button.setForeground(foreground);
@@ -919,7 +958,7 @@ public class HistoryPage extends JPanel {
             String company, String machine, String partDesc,
             double headThreshold, double coilThreshold,
             String startTime, String endTime,
-            String crackImagePath) {
+            String crackImagePath, String demagStatus) {
         operators.add(operator);
         supervisors.add(supervisor);
         dates.add(createdAt);
@@ -931,6 +970,7 @@ public class HistoryPage extends JPanel {
         startTimes.add(startTime);
         endTimes.add(endTime);
         crackImagePaths.add(crackImagePath);
+        demagStatuses.add(demagStatus);
     }
 
     private int getStatusColumnIndex(PersistentColorTableModel model) {
@@ -968,6 +1008,8 @@ public class HistoryPage extends JPanel {
                             modelRow < headThresholds.size() ? String.valueOf(headThresholds.get(modelRow)) : "");
                     meta.put("Coilshot Threshold",
                             modelRow < coilThresholds.size() ? String.valueOf(coilThresholds.get(modelRow)) : "");
+                    meta.put("DeMag Status",
+                            modelRow < demagStatuses.size() ? demagStatuses.get(modelRow) : "");
 
                     // Optional crack image path (from DB or current session)
                     if (modelRow < crackImagePaths.size()) {
@@ -1052,26 +1094,25 @@ public class HistoryPage extends JPanel {
             java.awt.Color headColor = headshotHistoryTableModel.getCellColor(i, headStatusCol);
             java.awt.Color coilColor = coilshotHistoryTableModel.getCellColor(i, coilStatusCol);
 
-            // Date / Time from metadata
+            // Date / Time from metadata - combine into single string
             String createdAt = (i < dates.size() && dates.get(i) != null) ? dates.get(i) : "";
-            String date = createdAt;
-            String time = "";
-            int idxT = createdAt.indexOf(' ');
-            if (idxT >= 0) {
-                date = createdAt.substring(0, idxT);
-                time = createdAt.substring(idxT + 1);
-            }
+            String dateTime = createdAt; // Keep full "YYYY-MM-DD HH:MM:SS" format
 
             String operator = (i < operators.size() && operators.get(i) != null) ? operators.get(i) : "";
+            String demagStatus = (i < demagStatuses.size() && demagStatuses.get(i) != null) ? demagStatuses.get(i) : "";
+            String partDescription = (i < partDescriptions.size() && partDescriptions.get(i) != null)
+                    ? partDescriptions.get(i)
+                    : "";
 
             Object[] row = new Object[partHistoryTableModel.getColumnCount()];
             row[0] = displayPartNo; // Part No (PartIdCell or String with retest suffix)
             row[1] = headStatus; // Headshot status text (Pass/Error/retest)
             row[2] = coilStatus; // CoilShot status text (Pass/Error/retest)
-            row[3] = date;
-            row[4] = time;
-            row[5] = operator;
-            row[6] = "Details";
+            row[3] = demagStatus; // DeMag status ("Done")
+            row[4] = partDescription; // Part Description
+            row[5] = dateTime; // Date & Time combined
+            row[6] = operator;
+            row[7] = "Details";
 
             partHistoryTableModel.addRow(row);
 
@@ -1081,6 +1122,10 @@ public class HistoryPage extends JPanel {
             }
             if (coilColor != null) {
                 partHistoryTableModel.setCellColor(i, 2, coilColor);
+            }
+            // Set green background for DeMag "Done" cells
+            if (demagStatus != null && !demagStatus.isEmpty() && "Done".equalsIgnoreCase(demagStatus)) {
+                partHistoryTableModel.setCellColor(i, 3, Color.GREEN);
             }
         }
     }
@@ -1122,6 +1167,7 @@ public class HistoryPage extends JPanel {
         headThresholds.clear();
         coilThresholds.clear();
         crackImagePaths.clear();
+        demagStatuses.clear();
         parts.clear();
 
         try (java.sql.Connection c = com.magpi.db.Database.getInstance().getConnection()) {
@@ -1129,6 +1175,8 @@ public class HistoryPage extends JPanel {
                     "CASE WHEN (SELECT COUNT(*) FROM pragma_table_info('session_parts') WHERE name='crack_detected')>0 THEN sp.crack_detected ELSE NULL END AS crack_detected, "
                     +
                     "CASE WHEN (SELECT COUNT(*) FROM pragma_table_info('session_parts') WHERE name='crack_image_path')>0 THEN sp.crack_image_path ELSE NULL END AS crack_image_path, "
+                    +
+                    "CASE WHEN (SELECT COUNT(*) FROM pragma_table_info('session_parts') WHERE name='demag_status')>0 THEN sp.demag_status ELSE NULL END AS demag_status, "
                     +
                     "s.operator_name, s.supervisor_id, sp.created_at, s.company_name, s.machine_id, s.part_description, s.headshot_threshold, s.coilshot_threshold, s.start_time, s.end_time "
                     +
@@ -1143,29 +1191,31 @@ public class HistoryPage extends JPanel {
                     m.put("status", rs.getString(3));
                     m.put("crack_detected", rs.getObject(4));
                     m.put("crack_image_path", rs.getString(5));
-                    m.put("operator_name", rs.getString(6));
-                    m.put("supervisor_id", rs.getString(7));
-                    m.put("created_at", rs.getString(8));
-                    m.put("company_name", rs.getString(9));
-                    m.put("machine_id", rs.getString(10));
-                    m.put("part_description", rs.getString(11));
-                    m.put("headshot_threshold", rs.getDouble(12));
-                    m.put("coilshot_threshold", rs.getDouble(13));
-                    m.put("start_time", rs.getString(14));
-                    m.put("end_time", rs.getString(15));
+                    m.put("demag_status", rs.getString(6));
+                    m.put("operator_name", rs.getString(7));
+                    m.put("supervisor_id", rs.getString(8));
+                    m.put("created_at", rs.getString(9));
+                    m.put("company_name", rs.getString(10));
+                    m.put("machine_id", rs.getString(11));
+                    m.put("part_description", rs.getString(12));
+                    m.put("headshot_threshold", rs.getDouble(13));
+                    m.put("coilshot_threshold", rs.getDouble(14));
+                    m.put("start_time", rs.getString(15));
+                    m.put("end_time", rs.getString(16));
                     parts.add(m);
 
-                    operators.add(rs.getString(6));
-                    supervisors.add(rs.getString(7));
-                    dates.add(rs.getString(8));
-                    companies.add(rs.getString(9));
-                    machines.add(rs.getString(10));
-                    partDescriptions.add(rs.getString(11));
-                    headThresholds.add(rs.getDouble(12));
-                    coilThresholds.add(rs.getDouble(13));
-                    startTimes.add(rs.getString(14));
-                    endTimes.add(rs.getString(15));
+                    operators.add(rs.getString(7));
+                    supervisors.add(rs.getString(8));
+                    dates.add(rs.getString(9));
+                    companies.add(rs.getString(10));
+                    machines.add(rs.getString(11));
+                    partDescriptions.add(rs.getString(12));
+                    headThresholds.add(rs.getDouble(13));
+                    coilThresholds.add(rs.getDouble(14));
+                    startTimes.add(rs.getString(15));
+                    endTimes.add(rs.getString(16));
                     crackImagePaths.add(rs.getString(5));
+                    demagStatuses.add(rs.getString(6) != null ? rs.getString(6) : "");
                 }
             }
 
@@ -1176,8 +1226,25 @@ public class HistoryPage extends JPanel {
                     row[0] = p.get("part_number");
                     int statusCol = getStatusColumnIndex(model);
                     int crackCol = getCrackColumnIndex(model);
-                    for (int i = 1; i < statusCol; i++)
-                        row[i] = "";
+
+                    // Find DeMag column index
+                    int demagCol = -1;
+                    for (int colIdx = 0; colIdx < model.getColumnCount(); colIdx++) {
+                        if ("DeMag".equals(model.getColumnName(colIdx))) {
+                            demagCol = colIdx;
+                            break;
+                        }
+                    }
+
+                    for (int i = 1; i < statusCol; i++) {
+                        if (i == demagCol) {
+                            String ds = (String) p.get("demag_status");
+                            row[i] = ds == null ? "" : ds;
+                            // Set color immediately (will be applied after adding row)
+                        } else {
+                            row[i] = "";
+                        }
+                    }
 
                     // Determine threshold for this meter type
                     double threshold = "Headshot".equals(meterType)
@@ -1236,6 +1303,14 @@ public class HistoryPage extends JPanel {
                             } else {
                                 model.setCellColor(currentRow, col, java.awt.Color.RED);
                             }
+                        }
+                    }
+
+                    // Set DeMag Color
+                    if (demagCol != -1) {
+                        Object val = model.getValueAt(currentRow, demagCol);
+                        if (val != null && "Done".equalsIgnoreCase(val.toString())) {
+                            model.setCellColor(currentRow, demagCol, java.awt.Color.GREEN);
                         }
                     }
 

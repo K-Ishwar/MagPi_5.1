@@ -390,6 +390,14 @@ public class TablePage extends JPanel {
         for (int i = tableModel.getRowCount() - 1; i >= 0; i--) {
             if (tableModel.getValueAt(i, 0).equals(partNumber)) {
                 int statusCol = getStatusColumnIndex(tableModel);
+
+                // Check if status text is "Crack" - if so, set orange and return
+                Object statusValue = tableModel.getValueAt(i, statusCol);
+                if (statusValue != null && "Crack".equalsIgnoreCase(statusValue.toString())) {
+                    tableModel.setCellColor(i, statusCol, new Color(255, 165, 0)); // Orange
+                    return;
+                }
+
                 boolean hasRedValue = false;
                 boolean hasValidValue = false;
 
@@ -718,9 +726,15 @@ public class TablePage extends JPanel {
                 String statusText = cracksFound ? "Crack" : "Pass";
                 tableModel.setValueAt(statusText, i, statusCol);
 
-                // If there is no color yet (e.g. called at endTest), set a sensible default
-                if (tableModel.getCellColor(i, statusCol) == null) {
-                    tableModel.setCellColor(i, statusCol, cracksFound ? Color.RED : Color.GREEN);
+                // Set color: Orange for crack, Green for pass (if no color set yet)
+                if (cracksFound) {
+                    // Always set orange for crack status
+                    tableModel.setCellColor(i, statusCol, new Color(255, 165, 0));
+                } else {
+                    // Only set green if no color exists yet
+                    if (tableModel.getCellColor(i, statusCol) == null) {
+                        tableModel.setCellColor(i, statusCol, Color.GREEN);
+                    }
                 }
                 return;
             }

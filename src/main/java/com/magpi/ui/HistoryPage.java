@@ -321,10 +321,19 @@ public class HistoryPage extends JPanel {
         operatorPanel.setBorder(BorderFactory.createTitledBorder("Operator Filter (Optional)"));
 
         JLabel operatorLabel = new JLabel("Operator Name:");
-        JTextField operatorField = new JTextField("");
+
+        // Get operators from database and create dropdown
+        java.util.List<String> operators = com.magpi.db.Database.getInstance().getAllOperators();
+        String[] operatorArray = new String[operators.size() + 1];
+        operatorArray[0] = ""; // Empty option for "no filter"
+        for (int i = 0; i < operators.size(); i++) {
+            operatorArray[i + 1] = operators.get(i);
+        }
+        JComboBox<String> operatorCombo = new JComboBox<>(operatorArray);
+        operatorCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
 
         operatorPanel.add(operatorLabel);
-        operatorPanel.add(operatorField);
+        operatorPanel.add(operatorCombo);
 
         mainPanel.add(operatorPanel);
 
@@ -335,13 +344,14 @@ public class HistoryPage extends JPanel {
         JButton exportBtn = new JButton("Export");
         styleButton(exportBtn, new Color(41, 128, 185), Color.WHITE);
         exportBtn.addActionListener(e -> {
+            String selectedOperator = (String) operatorCombo.getSelectedItem();
             performFilteredExport(
                     todayOption.isSelected(),
                     startDateField.getText().trim(),
                     endDateField.getText().trim(),
                     startTimeField.getText().trim(),
                     endTimeField.getText().trim(),
-                    operatorField.getText().trim());
+                    selectedOperator != null ? selectedOperator.trim() : "");
             dialog.dispose();
         });
 
@@ -600,10 +610,19 @@ public class HistoryPage extends JPanel {
         operatorPanel.setBorder(BorderFactory.createTitledBorder("Operator Filter (Optional)"));
 
         JLabel operatorLabel = new JLabel("Operator Name:");
-        JTextField operatorField = new JTextField("");
+
+        // Get operators from database and create dropdown
+        java.util.List<String> operators = com.magpi.db.Database.getInstance().getAllOperators();
+        String[] operatorArray = new String[operators.size() + 1];
+        operatorArray[0] = ""; // Empty option for "no filter"
+        for (int i = 0; i < operators.size(); i++) {
+            operatorArray[i + 1] = operators.get(i);
+        }
+        JComboBox<String> operatorCombo = new JComboBox<>(operatorArray);
+        operatorCombo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
 
         operatorPanel.add(operatorLabel);
-        operatorPanel.add(operatorField);
+        operatorPanel.add(operatorCombo);
 
         mainPanel.add(operatorPanel);
 
@@ -614,13 +633,14 @@ public class HistoryPage extends JPanel {
         JButton exportBtn = new JButton("Export");
         styleButton(exportBtn, new Color(41, 128, 185), Color.WHITE);
         exportBtn.addActionListener(e -> {
+            String selectedOperator = (String) operatorCombo.getSelectedItem();
             performSummaryFilteredExport(
                     todayOption.isSelected(),
                     startDateField.getText().trim(),
                     endDateField.getText().trim(),
                     startTimeField.getText().trim(),
                     endTimeField.getText().trim(),
-                    operatorField.getText().trim());
+                    selectedOperator != null ? selectedOperator.trim() : "");
             dialog.dispose();
         });
 

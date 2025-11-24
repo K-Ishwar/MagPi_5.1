@@ -157,4 +157,23 @@ public class Database {
         com.magpi.db.UserDao userDao = new com.magpi.db.UserDao();
         userDao.ensureDefaultAdmin();
     }
+
+    /**
+     * Get all operator names from the database
+     * 
+     * @return List of operator names
+     */
+    public java.util.List<String> getAllOperators() {
+        java.util.List<String> operators = new java.util.ArrayList<>();
+        try (Connection conn = getConnection();
+                Statement st = conn.createStatement();
+                ResultSet rs = st.executeQuery("SELECT name FROM operators ORDER BY name")) {
+            while (rs.next()) {
+                operators.add(rs.getString("name"));
+            }
+        } catch (SQLException e) {
+            System.err.println("Error fetching operators: " + e.getMessage());
+        }
+        return operators;
+    }
 }

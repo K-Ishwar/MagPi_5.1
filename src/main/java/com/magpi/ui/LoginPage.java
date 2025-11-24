@@ -196,7 +196,7 @@ public class LoginPage extends JPanel {
 
         // Create styled panel for logo
         JPanel logoPanel = new JPanel(new BorderLayout());
-        logoPanel.setBackground(new Color(0, 0, 0, 0)); //transparent
+        logoPanel.setBackground(new Color(0, 0, 0, 0)); // transparent
         logoPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         logoPanel.add(logoLabel, BorderLayout.CENTER);
 
@@ -243,6 +243,7 @@ public class LoginPage extends JPanel {
 
     /**
      * Adds a login button with the provided action listener
+     * 
      * @param loginAction The action to perform on login
      */
     public void addLoginButton(ActionListener loginAction) {
@@ -252,7 +253,7 @@ public class LoginPage extends JPanel {
     private void showLoginDialog() {
         // Create a dialog for login
         JDialog loginDialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Login", true);
-        loginDialog.setSize(600, 550);  // Increased size to better show parameter history
+        loginDialog.setSize(600, 550); // Increased size to better show parameter history
         loginDialog.setLocationRelativeTo(this);
         loginDialog.setLayout(new BorderLayout());
 
@@ -274,13 +275,13 @@ public class LoginPage extends JPanel {
 
             @Override
             protected void paintTab(Graphics g, int tabPlacement, Rectangle[] rects, int tabIndex,
-                                    Rectangle iconRect, Rectangle textRect) {
+                    Rectangle iconRect, Rectangle textRect) {
                 // Do nothing to hide the tabs
             }
 
             @Override
             protected void paintTabBorder(Graphics g, int tabPlacement, int tabIndex,
-                                          int x, int y, int w, int h, boolean isSelected) {
+                    int x, int y, int w, int h, boolean isSelected) {
                 // Do nothing to hide the tab borders
             }
 
@@ -618,6 +619,7 @@ public class LoginPage extends JPanel {
 
     /**
      * Updates the session with login information
+     * 
      * @param session The session to update
      * @return true if all required fields are filled, false otherwise
      */
@@ -634,7 +636,8 @@ public class LoginPage extends JPanel {
             updateOperatorsList();
         }
 
-        if (partDescription != null && !partDescription.trim().isEmpty() && !library.getPartDescriptions().contains(partDescription)) {
+        if (partDescription != null && !partDescription.trim().isEmpty()
+                && !library.getPartDescriptions().contains(partDescription)) {
             library.addPartDescription(partDescription);
             updatePartDescriptionList();
         }

@@ -40,6 +40,30 @@ public class CalibrationDialog extends JDialog {
 
         // Pie Gauge status selector
         pieGaugeComboBox = new JComboBox<>(new String[] { "OK", "Not OK" });
+
+        // Load today's calibration data if it exists
+        loadTodaysCalibration();
+    }
+
+    /**
+     * Load today's calibration data and populate the fields
+     */
+    private void loadTodaysCalibration() {
+        try {
+            CalibrationDao dao = new CalibrationDao();
+            CalibrationLog todaysLog = dao.getCalibrationForDate(LocalDate.now());
+
+            if (todaysLog != null) {
+                // Populate fields with today's saved values
+                machineCalibrationField.setText(String.valueOf(todaysLog.getMachineCalibrationDvcon()));
+                blackLightIntensityField.setText(String.valueOf(todaysLog.getBlackLightIntensity()));
+                magneticBathConcentrationField.setText(todaysLog.getMagneticBathConcentration());
+                pieGaugeComboBox.setSelectedItem(todaysLog.getPieGaugeStatus() ? "OK" : "Not OK");
+            }
+        } catch (Exception e) {
+            System.err.println("Error loading today's calibration: " + e.getMessage());
+            // If there's an error, just leave fields empty
+        }
     }
 
     private void setupUI() {

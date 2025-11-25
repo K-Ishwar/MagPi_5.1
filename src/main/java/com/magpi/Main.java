@@ -39,6 +39,11 @@ public class Main {
         // Set up custom UI styling
         setupModernUI();
 
+        // Check for valid license before proceeding
+        if (!checkLicense()) {
+            System.exit(0);
+        }
+
         // Initialize database (creates schema and default admin if needed)
         try {
             com.magpi.db.Database.getInstance().init();
@@ -64,6 +69,67 @@ public class Main {
 
         // Show the frame
         frame.setVisible(true);
+    }
+
+    /**
+     * Checks for a valid license and prompts the user if one is missing.
+     * 
+     * @return true if licensed, false if the user cancelled or failed.
+     */
+    private boolean checkLicense() {
+        if (com.magpi.auth.LicenseManager.isLicensed()) {
+            return true;
+        }
+
+        String hwId = com.magpi.auth.LicenseManager.getHardwareFingerprint();
+
+        while (true) {
+            JPanel panel = new JPanel(new BorderLayout(10, 10));
+            JLabel label = new JLabel("<html><b>This application is not licensed.</b><br>" +
+                    "Please provide your Machine ID to the vendor to receive a license key.<br><br>" +
+                    "<b>Machine ID:</b> " + hwId + "</html>");
+
+            JTextField keyField = new JTextField();
+
+            // Add a button to copy the ID to clipboard
+            JButton copyButton = new JButton("Copy ID");
+            copyButton.addActionListener(e -> {
+                java.awt.datatransfer.StringSelection selection = new java.awt.datatransfer.StringSelection(hwId);
+                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
+                JOptionPane.showMessageDialog(panel, "Machine ID copied to clipboard!");
+            });
+
+            JPanel inputPanel = new JPanel(new BorderLayout(5, 5));
+            inputPanel.add(new JLabel("Enter License Key:"), BorderLayout.NORTH);
+            inputPanel.add(keyField, BorderLayout.CENTER);
+
+            panel.add(label, BorderLayout.NORTH);
+            panel.add(copyButton, BorderLayout.CENTER);
+            panel.add(inputPanel, BorderLayout.SOUTH);
+
+            int result = JOptionPane.showConfirmDialog(null, panel, "License Activation",
+                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
+
+            if (result != JOptionPane.OK_OPTION) {
+                return false; // User cancelled
+            }
+
+            String inputKey = keyField.getText().trim();
+            if (com.magpi.auth.LicenseManager.isValidKey(inputKey)) {
+                try {
+                    com.magpi.auth.LicenseManager.saveLicense(inputKey);
+                    JOptionPane.showMessageDialog(null, "License activated successfully!", "Success",
+                            JOptionPane.INFORMATION_MESSAGE);
+                    return true;
+                } catch (Exception e) {
+                    JOptionPane.showMessageDialog(null, "Failed to save license: " + e.getMessage(), "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                }
+            } else {
+                JOptionPane.showMessageDialog(null, "Invalid License Key. Please try again.", "Error",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        }
     }
 
     /**

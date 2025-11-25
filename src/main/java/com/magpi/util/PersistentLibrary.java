@@ -8,7 +8,8 @@ import java.io.*;
 import java.util.*;
 
 /**
- * Manages persistent storage of operator names, part descriptions, and part-specific parameters.
+ * Manages persistent storage of operator names, part descriptions, and
+ * part-specific parameters.
  * Now backed by SQLite. Includes one-time migration from legacy text files.
  */
 public class PersistentLibrary {
@@ -52,6 +53,14 @@ public class PersistentLibrary {
         }
     }
 
+    public void removeOperator(String operator) {
+        try {
+            operatorDao.remove(operator);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     // Part description methods
     public void addPartDescription(String description) {
         try {
@@ -69,6 +78,22 @@ public class PersistentLibrary {
         }
     }
 
+    public void removePartDescription(String description) {
+        try {
+            partDao.remove(description);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void removeSpecificParameter(String partDescription, double headshotThreshold, double coilshotThreshold) {
+        try {
+            parameterDao.removeSpecific(partDescription, headshotThreshold, coilshotThreshold);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     // Parameter methods
     public void savePartParameters(String partDescription, double headshotThreshold, double coilshotThreshold) {
         try {
@@ -81,7 +106,8 @@ public class PersistentLibrary {
     public PartParameters getPartParameters(String partDescription) {
         try {
             ParameterDao.Param p = parameterDao.getCurrent(partDescription);
-            if (p == null) return null;
+            if (p == null)
+                return null;
             return new PartParameters(p.head, p.coil);
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -92,7 +118,8 @@ public class PersistentLibrary {
         try {
             List<ParameterDao.Param> raw = parameterDao.getHistory(partDescription);
             List<PartParameters> list = new ArrayList<>();
-            for (ParameterDao.Param p : raw) list.add(new PartParameters(p.head, p.coil));
+            for (ParameterDao.Param p : raw)
+                list.add(new PartParameters(p.head, p.coil));
             return list;
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -106,7 +133,8 @@ public class PersistentLibrary {
         try {
             boolean hasAnyLegacy = new File(OPERATORS_FILE).exists() || new File(PARTS_FILE).exists() ||
                     new File(PARAMETERS_FILE).exists() || new File(PARAMETER_HISTORY_FILE).exists();
-            if (!hasAnyLegacy) return;
+            if (!hasAnyLegacy)
+                return;
 
             // Read legacy files
             Set<String> operators = readLinesToSet(OPERATORS_FILE);
@@ -114,11 +142,13 @@ public class PersistentLibrary {
             Map<String, PartParameters> currentParams = readCurrentParams(PARAMETERS_FILE);
             Map<String, List<PartParameters>> historyParams = readHistory(PARAMETER_HISTORY_FILE);
             for (String op : operators) {
-                if (!op.isBlank()) operatorDao.add(op);
+                if (!op.isBlank())
+                    operatorDao.add(op);
             }
             // Insert parts
             for (String part : parts) {
-                if (!part.isBlank()) partDao.add(part);
+                if (!part.isBlank())
+                    partDao.add(part);
             }
             // Insert parameters and history
             for (Map.Entry<String, PartParameters> e : currentParams.entrySet()) {
@@ -146,7 +176,7 @@ public class PersistentLibrary {
         File f = new File(path);
         if (f.exists()) {
             File dest = new File(path + ".migrated");
-            //noinspection ResultOfMethodCallIgnored
+            // noinspection ResultOfMethodCallIgnored
             f.renameTo(dest);
         }
     }
@@ -154,21 +184,25 @@ public class PersistentLibrary {
     private Set<String> readLinesToSet(String filename) {
         Set<String> set = new HashSet<>();
         File file = new File(filename);
-        if (!file.exists()) return set;
+        if (!file.exists())
+            return set;
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 String v = line.trim();
-                if (!v.isEmpty()) set.add(v);
+                if (!v.isEmpty())
+                    set.add(v);
             }
-        } catch (IOException ignored) {}
+        } catch (IOException ignored) {
+        }
         return set;
     }
 
     private Map<String, PartParameters> readCurrentParams(String filename) {
         Map<String, PartParameters> map = new HashMap<>();
         File file = new File(filename);
-        if (!file.exists()) return map;
+        if (!file.exists())
+            return map;
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -180,14 +214,16 @@ public class PersistentLibrary {
                     map.put(partDesc, new PartParameters(headshot, coilshot));
                 }
             }
-        } catch (IOException ignored) {}
+        } catch (IOException ignored) {
+        }
         return map;
     }
 
     private Map<String, List<PartParameters>> readHistory(String filename) {
         Map<String, List<PartParameters>> map = new HashMap<>();
         File file = new File(filename);
-        if (!file.exists()) return map;
+        if (!file.exists())
+            return map;
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -200,7 +236,8 @@ public class PersistentLibrary {
                             .add(new PartParameters(headshot, coilshot));
                 }
             }
-        } catch (IOException ignored) {}
+        } catch (IOException ignored) {
+        }
         return map;
     }
 
@@ -213,8 +250,13 @@ public class PersistentLibrary {
             this.coilshotThreshold = coilshotThreshold;
         }
 
-        public double getHeadshotThreshold() { return headshotThreshold; }
-        public double getCoilshotThreshold() { return coilshotThreshold; }
+        public double getHeadshotThreshold() {
+            return headshotThreshold;
+        }
+
+        public double getCoilshotThreshold() {
+            return coilshotThreshold;
+        }
 
         @Override
         public String toString() {

@@ -152,6 +152,19 @@ public class Database {
                     "FOREIGN KEY(session_part_id) REFERENCES session_parts(id) ON DELETE CASCADE" +
                     ")");
             st.executeUpdate("CREATE INDEX IF NOT EXISTS idx_meas_part ON measurements(session_part_id)");
+
+            // Calibration logs table
+            st.executeUpdate("CREATE TABLE IF NOT EXISTS calibration_logs (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "date TEXT NOT NULL, " +
+                    "machine_calibration_dvcon REAL NOT NULL, " +
+                    "black_light_intensity REAL NOT NULL, " +
+                    "magnetic_bath_concentration TEXT NOT NULL, " +
+                    "pie_gauge_status INTEGER NOT NULL, " +
+                    "created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP" +
+                    ")");
+            st.executeUpdate("CREATE INDEX IF NOT EXISTS idx_calibration_date ON calibration_logs(date)");
+
         }
         // Ensure there is a default admin
         com.magpi.db.UserDao userDao = new com.magpi.db.UserDao();

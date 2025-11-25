@@ -1,0 +1,38 @@
+    private void removeParameters() {
+        // Check if a parameter is selected from the history list
+        PersistentLibrary.PartParameters selectedParam = parametersHistoryList.getSelectedValue();
+        if (selectedParam == null) {
+            JOptionPane.showMessageDialog(this,
+                    "Please select a parameter from the history list to remove.",
+                    "No Selection",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String selectedPart = (String) partDescriptionComboBox.getSelectedItem();
+        if (selectedPart == null || selectedPart.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Please select a part description.",
+                    "No Selection",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "Are you sure you want to remove the selected parameter?\n" + selectedParam.toString(),
+                "Confirm Removal",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            library.removeSpecificParameter(selectedPart, 
+                    selectedParam.getHeadshotThreshold(), 
+                    selectedParam.getCoilshotThreshold());
+            // Update parameter history list
+            updateParameterHistoryList(selectedPart);
+            JOptionPane.showMessageDialog(this,
+                    "Parameter removed successfully.",
+                    "Success",
+                    JOptionPane.INFORMATION_MESSAGE);
+        }
+    }

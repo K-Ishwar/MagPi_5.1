@@ -327,9 +327,21 @@ public class LoginPage extends JPanel {
         gbc.gridwidth = 1;
         loginPanel.add(supervisorIdField, gbc);
 
+        // System Calibration button
+        gbc.gridx = 1;
+        gbc.gridy = 3;
+        gbc.gridwidth = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        JButton calibrationButton = new JButton("System Calibration");
+        calibrationButton.setBackground(new Color(46, 204, 113));
+        calibrationButton.setForeground(Color.BLACK);
+        calibrationButton.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        calibrationButton.addActionListener(e -> openCalibrationDialog());
+        loginPanel.add(calibrationButton, gbc);
+
         // Operator section
         gbc.gridx = 0;
-        gbc.gridy = 3;
+        gbc.gridy = 4;
         gbc.gridwidth = 1;
         loginPanel.add(new JLabel("Operator Name:"), gbc);
 
@@ -337,17 +349,20 @@ public class LoginPage extends JPanel {
         gbc.gridwidth = 1;
         loginPanel.add(operatorComboBox, gbc);
 
-        // Add operator button
+        // Add and Remove operator buttons
         gbc.gridx = 1;
-        gbc.gridy = 4;
-        gbc.gridwidth = 1;
+        gbc.gridy = 5;
         gbc.gridwidth = 1;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 0.0;
-        gbc.weighty = 0.0;
+
+        JPanel operatorButtonPanel = new JPanel(new GridLayout(1, 2, 5, 0));
         JButton addOperatorButton = new JButton("Add New Operator");
         addOperatorButton.addActionListener(e -> addNewOperator());
-        loginPanel.add(addOperatorButton, gbc);
+        JButton removeOperatorButton = new JButton("Remove Operator");
+        removeOperatorButton.addActionListener(e -> removeOperator());
+        operatorButtonPanel.add(addOperatorButton);
+        operatorButtonPanel.add(removeOperatorButton);
+        loginPanel.add(operatorButtonPanel, gbc);
 
         // Part Description section has been moved to the Parameters tab
 
@@ -370,16 +385,20 @@ public class LoginPage extends JPanel {
         paramGbc.gridwidth = 1;
         parametersPanel.add(partDescriptionComboBox, paramGbc);
 
-        // Add part button
+        // Add and Remove part buttons
         paramGbc.gridx = 1;
         paramGbc.gridy = 1;
         paramGbc.gridwidth = 1;
         paramGbc.fill = GridBagConstraints.HORIZONTAL;
-        paramGbc.weightx = 0.0;
-        paramGbc.weighty = 0.0;
+
+        JPanel partButtonPanel = new JPanel(new GridLayout(1, 2, 5, 0));
         JButton addPartButton = new JButton("Add New Part Description");
         addPartButton.addActionListener(e -> addNewPartDescription());
-        parametersPanel.add(addPartButton, paramGbc);
+        JButton removePartButton = new JButton("Remove Part Description");
+        removePartButton.addActionListener(e -> removePartDescription());
+        partButtonPanel.add(addPartButton);
+        partButtonPanel.add(removePartButton);
+        parametersPanel.add(partButtonPanel, paramGbc);
 
         // Headshot Threshold
         paramGbc.gridx = 0;
@@ -401,14 +420,24 @@ public class LoginPage extends JPanel {
         paramGbc.gridwidth = 1;
         parametersPanel.add(coilShotThresholdField, paramGbc);
 
-        // Save button
+        // Save and Remove Parameters buttons
         paramGbc.gridx = 0;
         paramGbc.gridy = 4;
         paramGbc.gridwidth = 2;
+
+        JPanel paramButtonPanel = new JPanel(new GridLayout(1, 2, 10, 0));
         JButton saveParametersButton = new JButton("Save Parameters");
         saveParametersButton.addActionListener(e -> saveParameters());
         saveParametersButton.setBackground(new Color(102, 255, 102));
-        parametersPanel.add(saveParametersButton, paramGbc);
+
+        JButton removeParametersButton = new JButton("Remove Parameters");
+        removeParametersButton.addActionListener(e -> removeParameters());
+        removeParametersButton.setBackground(new Color(231, 76, 60));
+        removeParametersButton.setForeground(Color.BLACK);
+
+        paramButtonPanel.add(saveParametersButton);
+        paramButtonPanel.add(removeParametersButton);
+        parametersPanel.add(paramButtonPanel, paramGbc);
 
         // Parameter history list
         paramGbc.gridx = 0;
@@ -660,5 +689,103 @@ public class LoginPage extends JPanel {
         }
 
         return true;
+    }
+
+    private void removeOperator() {
+        String selectedOperator = (String) operatorComboBox.getSelectedItem();
+        if (selectedOperator == null || selectedOperator.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Please select an operator to remove.",
+                    "No Selection",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "Are you sure you want to remove operator: " + selectedOperator + "?",
+                "Confirm Removal",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            library.removeOperator(selectedOperator);
+            updateOperatorComboBox(null);
+            updateOperatorsList();
+            JOptionPane.showMessageDialog(this,
+                    "Operator removed successfully.",
+                    "Success",
+                    JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    private void removePartDescription() {
+        String selectedPart = (String) partDescriptionComboBox.getSelectedItem();
+        if (selectedPart == null || selectedPart.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Please select a part description to remove.",
+                    "No Selection",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "Are you sure you want to remove part description: " + selectedPart + "?",
+                "Confirm Removal",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            library.removePartDescription(selectedPart);
+            updatePartDescriptionComboBox(null);
+            updatePartDescriptionList();
+            JOptionPane.showMessageDialog(this,
+                    "Part description removed successfully.",
+                    "Success",
+                    JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    private void openCalibrationDialog() {
+        Frame owner = (Frame) SwingUtilities.getWindowAncestor(this);
+        CalibrationDialog.showDialog(owner);
+    }
+
+    private void removeParameters() {
+        // Check if a parameter is selected from the history list
+        PersistentLibrary.PartParameters selectedParam = parametersHistoryList.getSelectedValue();
+        if (selectedParam == null) {
+            JOptionPane.showMessageDialog(this,
+                    "Please select a parameter from the history list to remove.",
+                    "No Selection",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String selectedPart = (String) partDescriptionComboBox.getSelectedItem();
+        if (selectedPart == null || selectedPart.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Please select a part description.",
+                    "No Selection",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "Are you sure you want to remove the selected parameter?\n" + selectedParam.toString(),
+                "Confirm Removal",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            library.removeSpecificParameter(selectedPart,
+                    selectedParam.getHeadshotThreshold(),
+                    selectedParam.getCoilshotThreshold());
+            // Update parameter history list
+            updateParameterHistoryList(selectedPart);
+            JOptionPane.showMessageDialog(this,
+                    "Parameter removed successfully.",
+                    "Success",
+                    JOptionPane.INFORMATION_MESSAGE);
+        }
     }
 }

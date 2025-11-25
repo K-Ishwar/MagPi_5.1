@@ -9,6 +9,7 @@ import com.magpi.util.SerialPortManager;
 // Video capture feature (VLCJ) temporarily disabled
 // import com.magpi.video.VLCJVideoStream;
 import com.magpi.util.PersistentLibrary;
+import com.magpi.db.CalibrationDao;
 
 import javax.swing.*;
 import javax.swing.table.TableColumn;
@@ -34,6 +35,7 @@ public class TablePage extends JPanel {
     private JLabel parametersLabel;
     private JLabel Part_D;
     private JLabel operatorLabel;
+    private JLabel calibrationStatusLabel;
     private TestSession session;
     private SerialPortManager serialPortManager;
 
@@ -86,6 +88,10 @@ public class TablePage extends JPanel {
         Part_D = new JLabel("Part: " + session.getPartDescription());
         operatorLabel = new JLabel("Operator: " + session.getOperatorName());
 
+        // Initialize calibration status label
+        calibrationStatusLabel = new JLabel();
+        updateCalibrationStatus();
+
         // Initialize serial port manager
         serialPortManager = new SerialPortManager();
     }
@@ -106,6 +112,7 @@ public class TablePage extends JPanel {
         infoPanel.add(createStyledLabel(dateLabel, new Font("Segoe UI", Font.PLAIN, 14)));
         infoPanel.add(createStyledLabel(startTimeLabel, new Font("Segoe UI", Font.PLAIN, 14)));
         infoPanel.add(createStyledLabel(endTimeLabel, new Font("Segoe UI", Font.PLAIN, 14)));
+        infoPanel.add(calibrationStatusLabel);
 
         gbc.gridx = 0;
         gbc.gridy = 0;
@@ -1225,5 +1232,30 @@ public class TablePage extends JPanel {
             }
         }
         return count;
+    }
+
+    /**
+     * Update the calibration status indicator
+     */
+    private void updateCalibrationStatus() {
+        CalibrationDao dao = new CalibrationDao();
+        boolean hasCalibration = dao.hasCalibrationForToday();
+
+        if (hasCalibration) {
+            calibrationStatusLabel.setText("Calibration: Done");
+            calibrationStatusLabel.setForeground(new Color(46, 204, 113)); // Green
+        } else {
+            calibrationStatusLabel.setText("Calibration: Pending");
+            calibrationStatusLabel.setForeground(new Color(231, 76, 60)); // Red
+        }
+
+        calibrationStatusLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+    }
+
+    /**
+     * Refresh calibration status (can be called after calibration is completed)
+     */
+    public void refreshCalibrationStatus() {
+        updateCalibrationStatus();
     }
 }
